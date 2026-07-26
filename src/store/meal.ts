@@ -82,18 +82,30 @@ export const useMealStore = defineStore('meal', () => {
   // ==================== 云端同步 ====================
   async function syncFromCloud() {
     try {
-      if (!isOnline()) return
+      // 最开头就保存时间戳，看函数有没有被调用
+      uni.setStorageSync('debug_sync_start', Date.now())
+      uni.setStorageSync('debug_sync_info', { cfgFamilyId: '???', apiFamilyId: '???', memberCount: -1, members: ['函数已触发'] })
+    } catch {}
+
+    try {
+      if (!isOnline()) {
+        uni.setStorageSync('debug_sync_info', { cfgFamilyId: 'offline', apiFamilyId: '-', memberCount: -1, members: ['isOnline=false'] })
+        return
+      }
     } catch { return }
 
     syncing.value = true
     try {
       let config
-      try { config = getCloudConfig()! } catch { return }
+      try { config = getCloudConfig()! } catch {
+        uni.setStorageSync('debug_sync_info', { cfgFamilyId: 'no-config', apiFamilyId: '-', memberCount: -1, members: ['getCloudConfig失败'] })
+        return
+      }
 
-      console.log('[sync] 开始同步 familyId:', config?.familyId)
+      uni.setStorageSync('debug_sync_info', { cfgFamilyId: config?.familyId || '空', apiFamilyId: '请求中...', memberCount: -2, members: ['正在请求API'] })
       const fam = await familyApi.get(config.familyId)
-      console.log('[sync] 获取到成员数:', fam?.members?.length)
-      // 调试信息存到本地，页面上展示
+
+      // 保存调试信息
       try {
         uni.setStorageSync('debug_sync_info', {
           cfgFamilyId: config?.familyId,
