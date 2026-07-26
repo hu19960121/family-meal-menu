@@ -337,7 +337,7 @@ export const useMealStore = defineStore('meal', () => {
   // 向后兼容：页面通过 mealStore.orders / mealStore.placeOrder 访问
   const orders = computed(() => orderStore.items)
 
-  function placeOrder(items: Array<{ recipeId: string; recipeName: string; recipeCategory: string }>) {
+  function placeOrder(items: Array<{ recipeId: string; recipeName: string; recipeCategory: string; recipeImage?: string }>) {
     const user = currentUser.value
     const order = orderStore.place(items, user?.id || '', user?.name || '未知')
     // 跨域操作：更新食谱点单次数

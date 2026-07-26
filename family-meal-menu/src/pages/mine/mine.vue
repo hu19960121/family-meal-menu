@@ -157,6 +157,16 @@ function fmt(iso: string) {
   const d = new Date(iso)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+/** 根据 recipeId 查找菜谱封面图（优先从订单项自带，fallback 到菜谱库查找） */
+function getRecipeImage(item: { recipeId: string; recipeImage?: string }): string {
+  return item.recipeImage || store.getRecipeById(item.recipeId)?.coverImage || ''
+}
+
+/** 查找成员头像 */
+function getMemberAvatar(memberId: string): string {
+  return store.members.find(m => m.id === memberId)?.avatar || '👤'
+}
 </script>
 
 <template>
@@ -272,12 +282,18 @@ function fmt(iso: string) {
       <view v-if="todayOrders.length === 0" class="empty">暂无今日订单，去点餐页下单吧</view>
       <view v-for="o in todayOrders" :key="o.id" class="o-card">
         <view class="o-head">
-          <text class="o-av">{{ store.members.find(m => m.id === o.memberId)?.avatar || '👤' }}</text>
+          <image v-if="isImageUrl(getMemberAvatar(o.memberId))" :src="getMemberAvatar(o.memberId)" class="o-av-img" mode="aspectFill" />
+          <text v-else class="o-av">{{ getMemberAvatar(o.memberId) }}</text>
           <text class="o-user">{{ o.memberName }}</text>
           <text class="o-time">🕐 {{ fmt(o.createdAt) }}</text>
           <text class="o-qty">{{ o.items.length }}道</text>
         </view>
-        <text class="o-items">{{ o.items.map(i => i.recipeName).join('、') }}</text>
+        <!-- 每道菜的图片 -->
+        <view class="o-dish-row" v-for="item in o.items" :key="item.recipeId">
+          <image v-if="getRecipeImage(item)" :src="getRecipeImage(item)" class="o-dish-img" mode="aspectFill" />
+          <text class="o-dish-icon" v-else>{{ item.recipeCategory === 'meat' ? '🥩' : item.recipeCategory === 'vegetable' ? '🥬' : item.recipeCategory === 'soup' ? '🍲' : item.recipeCategory === 'seafood' ? '🦐' : item.recipeCategory === 'staple' ? '🍚' : item.recipeCategory === 'drink' ? '🥤' : '🍽️' }}</text>
+          <text class="o-dish-name">{{ item.recipeName }}</text>
+        </view>
       </view>
     </view>
 
@@ -293,12 +309,18 @@ function fmt(iso: string) {
       <view v-else-if="historyOrders.length === 0" class="empty">该日无订单</view>
       <view v-for="o in historyOrders" :key="o.id" class="o-card">
         <view class="o-head">
-          <text class="o-av">{{ store.members.find(m => m.id === o.memberId)?.avatar || '👤' }}</text>
+          <image v-if="isImageUrl(getMemberAvatar(o.memberId))" :src="getMemberAvatar(o.memberId)" class="o-av-img" mode="aspectFill" />
+          <text v-else class="o-av">{{ getMemberAvatar(o.memberId) }}</text>
           <text class="o-user">{{ o.memberName }}</text>
           <text class="o-time">🕐 {{ fmt(o.createdAt) }}</text>
           <text class="o-qty">{{ o.items.length }}道</text>
         </view>
-        <text class="o-items">{{ o.items.map(i => i.recipeName).join('、') }}</text>
+        <!-- 每道菜的图片 -->
+        <view class="o-dish-row" v-for="item in o.items" :key="item.recipeId">
+          <image v-if="getRecipeImage(item)" :src="getRecipeImage(item)" class="o-dish-img" mode="aspectFill" />
+          <text class="o-dish-icon" v-else>{{ item.recipeCategory === 'meat' ? '🥩' : item.recipeCategory === 'vegetable' ? '🥬' : item.recipeCategory === 'soup' ? '🍲' : item.recipeCategory === 'seafood' ? '🦐' : item.recipeCategory === 'staple' ? '🍚' : item.recipeCategory === 'drink' ? '🥤' : '🍽️' }}</text>
+          <text class="o-dish-name">{{ item.recipeName }}</text>
+        </view>
       </view>
     </view>
 
@@ -398,9 +420,16 @@ function fmt(iso: string) {
 .o-card { padding: 14rpx; background: #FFFBF7; border-radius: 10rpx; margin-bottom: 10rpx; border: 1rpx solid var(--color-border); }
 .o-head { display: flex; align-items: center; gap: 8rpx; margin-bottom: 4rpx; }
 .o-av { font-size: 28rpx; flex-shrink: 0; }
+.o-av-img { width: 48rpx; height: 48rpx; border-radius: 50%; flex-shrink: 0; }
 .o-user { font-size: 22rpx; color: var(--color-primary); font-weight: 500; }
 .o-time { font-size: 22rpx; color: var(--color-text-secondary); }
 .o-qty { font-size: 20rpx; background: #FFF0E8; color: var(--color-primary); padding: 1rpx 10rpx; border-radius: 8rpx; margin-left: auto; }
 .o-items { font-size: 24rpx; line-height: 1.5; display: block; }
+
+// ---------- 订单菜品行 ----------
+.o-dish-row { display: flex; align-items: center; gap: 10rpx; padding: 8rpx 0; border-top: 1rpx dashed #F0E8DD; &:first-child { margin-top: 8rpx; } }
+.o-dish-img { width: 80rpx; height: 80rpx; border-radius: 10rpx; flex-shrink: 0; }
+.o-dish-icon { font-size: 36rpx; flex-shrink: 0; width: 80rpx; text-align: center; }
+.o-dish-name { font-size: 24rpx; flex: 1; }
 
 </style>

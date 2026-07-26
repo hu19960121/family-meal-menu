@@ -19,7 +19,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /** 下单 */
   function place(
-    orderItems: Array<{ recipeId: string; recipeName: string; recipeCategory: string }>,
+    orderItems: Array<{ recipeId: string; recipeName: string; recipeCategory: string; recipeImage?: string }>,
     memberId: string,
     memberName: string,
   ): Order {

@@ -19,11 +19,13 @@ function placeOrder() {
     return
   }
   // 展开数量：每个 item 按 quantity 展开为多个 entry
-  const expanded: Array<{ recipeId: string; recipeName: string; recipeCategory: string }> = []
+  const expanded: Array<{ recipeId: string; recipeName: string; recipeCategory: string; recipeImage?: string }> = []
   for (const c of store.cart) {
     const qty = c.quantity || 1
+    const recipe = store.getRecipeById(c.recipeId)
+    const recipeImage = recipe?.coverImage || ''
     for (let i = 0; i < qty; i++) {
-      expanded.push({ recipeId: c.recipeId, recipeName: c.recipeName, recipeCategory: c.recipeCategory })
+      expanded.push({ recipeId: c.recipeId, recipeName: c.recipeName, recipeCategory: c.recipeCategory, recipeImage })
     }
   }
 

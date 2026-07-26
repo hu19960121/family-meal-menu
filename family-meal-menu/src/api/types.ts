@@ -33,6 +33,7 @@ export interface Nutrition { calories: number; protein: number; fat: number; car
 
 export interface OrderItem {
   recipeId: string; recipeName: string; recipeCategory: RecipeCategory
+  recipeImage?: string
 }
 
 export interface Order {
