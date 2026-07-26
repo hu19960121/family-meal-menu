@@ -137,9 +137,13 @@ function dissolveFamily() {
 }
 
 // ===== 订单 =====
-const today = new Date().toISOString().split('T')[0]
+/** 返回本地时区日期字符串 YYYY-MM-DD（而非 UTC） */
+function localDate(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const today = localDate()
 const allOrders = computed(() => store.orders)
-const todayOrders = computed(() => allOrders.value.filter(o => o.createdAt.startsWith(today)))
+const todayOrders = computed(() => allOrders.value.filter(o => localDate(new Date(o.createdAt)) === today))
 
 const historyDate = ref('')
 const pickerDate = ref(today)
@@ -147,7 +151,7 @@ const pickerDate = ref(today)
 function onDateChange(e: any) {
   historyDate.value = e.detail.value
 }
-const historyOrders = computed(() => historyDate.value ? allOrders.value.filter(o => o.createdAt.startsWith(historyDate.value)) : [])
+const historyOrders = computed(() => historyDate.value ? allOrders.value.filter(o => localDate(new Date(o.createdAt)) === historyDate.value) : [])
 
 function fmt(iso: string) {
   const d = new Date(iso)

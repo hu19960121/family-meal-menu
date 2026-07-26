@@ -159,6 +159,8 @@ export function uploadImage(filePath: string): Promise<string> {
       url,
       filePath,
       name: 'file',
+      timeout: 60000,
+      header: config.familyId ? { 'x-family-id': config.familyId } : {},
       success: (res) => {
         try {
           const data = JSON.parse(res.data as string)
