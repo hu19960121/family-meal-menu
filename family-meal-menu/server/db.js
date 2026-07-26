@@ -257,6 +257,25 @@ const db = {
       const doc = await Order.create({ ...order, _id: String(order.id || order._id), familyId: String(familyId) })
       return toPlain(doc)
     },
+
+    clearAll: async () => {
+      await Order.deleteMany({})
+    },
+  },
+
+  // ---------- 全局重置 ----------
+  /** 清空数据库中所有表的数据（仅当提供匹配的 resetToken 时执行） */
+  resetAll: async (token) => {
+    const EXPECTED = process.env.RESET_TOKEN || 'reset-all-data-2024'
+    if (token !== EXPECTED) return { success: false, error: 'resetToken 不正确' }
+    const results = await Promise.all([
+      Family.deleteMany({}),
+      Member.deleteMany({}),
+      Recipe.deleteMany({}),
+      CartItem.deleteMany({}),
+      Order.deleteMany({}),
+    ])
+    return { success: true, deleted: results.map(r => r.deletedCount).reduce((a, b) => a + b, 0) }
   },
 }
 

@@ -367,6 +367,16 @@ app.post('/api/families/:familyId/orders', requireFamily, asyncHandler(async (re
   res.json({ id: order.id, createdAt: order.createdAt })
 }))
 
+// ==================== 管理 API ====================
+
+// 清空全部数据（需要 resetToken）
+app.post('/api/admin/reset', asyncHandler(async (req, res) => {
+  const { resetToken } = req.body
+  const result = await db.resetAll(resetToken)
+  if (!result.success) return res.status(401).json(result)
+  res.json({ success: true, deleted: result.deleted, message: `已清空 ${result.deleted} 条数据` })
+}))
+
 // ==================== 错误处理 ====================
 
 app.use((err, req, res, next) => {
