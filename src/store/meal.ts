@@ -96,11 +96,12 @@ export const useMealStore = defineStore('meal', () => {
       // 调试：显示服务器地址和成员数，排查两台手机是否连的不同服务器
       if (fam?.members?.length !== undefined) {
         const shortUrl = (config?.serverUrl || '').replace(/^https?:\/\//, '').slice(0, 20)
-        const shortId = (config?.familyId || '').slice(0, 12)
+        const cfgId = (config?.familyId || '?').slice(0, 12)
+        const apiId = (fam?.id || '?').slice(0, 12)
         uni.showToast({
-          title: `[${shortUrl} id:${shortId}] ${fam.members.length}位`,
+          title: `配置:${cfgId} API:${apiId} ${fam.members.length}位`,
           icon: 'none',
-          duration: 2000,
+          duration: 2500,
         })
       }
       familyInfo.value = { name: fam.name, createdAt: fam.createdAt }
