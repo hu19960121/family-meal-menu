@@ -1,10 +1,39 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useMealStore } from '@/store/meal'
 import { RecipeCategoryLabels, RecipeCategoryIcons } from '@/api/types'
 import type { RecipeCategory } from '@/api/types'
 
 const store = useMealStore()
+const refreshing = ref(false)
+
+// 每次进入首页自动从服务器同步最新数据
+// 并每 30 秒自动轮询
+let timer: ReturnType<typeof setInterval> | null = null
+onShow(() => {
+  store.syncFromCloud()
+  if (!timer) timer = setInterval(() => store.syncFromCloud(), 30000)
+})
+onUnmounted(() => {
+  if (timer) { clearInterval(timer); timer = null }
+})
+
+// scroll-view 下拉刷新
+async function onRefresh() {
+  if (refreshing.value) return
+  refreshing.value = true
+  try {
+    // 给同步加 12 秒超时，防止请求卡死导致刷新一直转
+    await Promise.race([
+      store.syncFromCloud(),
+      new Promise(resolve => setTimeout(resolve, 20000)),
+    ])
+    uni.showToast({ title: '已刷新', icon: 'success', duration: 800 })
+  } finally {
+    refreshing.value = false
+  }
+}
 
 const activeCategory = ref<RecipeCategory | 'all'>('all')
 const searchKeyword = ref('')
@@ -92,7 +121,8 @@ function goCart() {
       </scroll-view>
 
       <!-- 右列：食谱卡片 -->
-      <scroll-view class="recipe-col" scroll-y :show-scrollbar="false" @touchmove.stop>
+      <scroll-view class="recipe-col" scroll-y :show-scrollbar="false"
+        refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
         <!-- 搜索 -->
         <view class="search-box">
           <input v-model="searchKeyword" class="search-input" placeholder="搜食谱..." />

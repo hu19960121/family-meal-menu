@@ -1,22 +1,24 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useMealStore } from '@/store/meal'
-import { getCloudConfig, saveCloudConfig, clearCloudConfig } from '@/api/client'
+import { getCloudConfig, saveCloudConfig } from '@/api/client'
 
 const store = useMealStore()
 
-// 如果已经初始化（有家庭数据），直接跳到主页面
+// 服务端地址（从之前保存的配置中恢复）
+const savedConfig = getCloudConfig()
+const serverUrl = ref(savedConfig?.serverUrl || 'https://family-meal-menu.onrender.com')
+
+// 唤醒服务器（Render 免费版 15 分钟无请求会休眠）
 onMounted(() => {
+  uni.request({ url: serverUrl.value + '/api/families', method: 'GET', timeout: 30000, fail: () => {} })
+
   if (store.isInitialized) {
     uni.switchTab({ url: '/pages/index/index' })
   }
 })
 
 const tab = ref<'create' | 'join'>('create')
-
-// 服务端地址（从之前保存的配置中恢复）
-const savedConfig = getCloudConfig()
-const serverUrl = ref(savedConfig?.serverUrl || 'http://192.168.10.7:3001')
 
 // 创建家庭
 const familyName = ref('')
@@ -96,15 +98,6 @@ async function joinFamily() {
     joining.value = false
   }
 }
-
-// 离线模式
-function offlineMode() {
-  clearCloudConfig()
-  const cfg = getCloudConfig()
-  store.createFamily('本地家庭', '我')
-  uni.showToast({ title: '进入离线模式', icon: 'success' })
-  uni.switchTab({ url: '/pages/index/index' })
-}
 </script>
 
 <template>
@@ -118,7 +111,7 @@ function offlineMode() {
     <!-- 服务端地址 -->
     <view class="server-bar">
       <text class="s-label">📡 服务端地址</text>
-      <input v-model="serverUrl" class="s-input" placeholder="http://192.168.10.7:3001" />
+      <input v-model="serverUrl" class="s-input" placeholder="https://你的服务器地址.com" />
     </view>
 
     <view class="card">
@@ -158,7 +151,6 @@ function offlineMode() {
       </view>
     </view>
 
-    <text class="offline-link" @click="offlineMode">💡 先跳过，使用离线模式（数据仅存本机）</text>
   </view>
 </template>
 

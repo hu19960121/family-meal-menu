@@ -70,13 +70,15 @@ function request<T>(method: string, path: string, body?: any, requireFamily = tr
       Object.assign(header, extraHeaders)
     }
 
-    uni.request({
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const req = uni.request({
       url,
       method: method as any,
       header,
       data: body,
-      timeout: 10000,
+      timeout: 30000,
       success: (res) => {
+        if (timer) clearTimeout(timer)
         const data = res.data as any
         if (res.statusCode >= 400) {
           reject(new Error(data?.error || `请求失败 (${res.statusCode})`))
@@ -85,9 +87,15 @@ function request<T>(method: string, path: string, body?: any, requireFamily = tr
         }
       },
       fail: (err) => {
+        if (timer) clearTimeout(timer)
         reject(new Error(err?.errMsg || '网络请求失败'))
       },
     })
+    // 额外超时保护（微信小程序 timeout 可能不生效）
+    timer = setTimeout(() => {
+      if (req && 'abort' in req) (req as any).abort()
+      reject(new Error('请求超时'))
+    }, 35000)
   })
 }
 
@@ -95,6 +103,33 @@ function get<T>(path: string): Promise<T> { return request<T>('GET', path) }
 function post<T>(path: string, body?: any, requireFamily = true): Promise<T> { return request<T>('POST', path, body, requireFamily) }
 function put<T>(path: string, body?: any): Promise<T> { return request<T>('PUT', path, body) }
 function del<T>(path: string, extraHeaders?: Record<string, string>): Promise<T> { return request<T>('DELETE', path, undefined, true, extraHeaders) }
+
+// ========== 图片上传（兼容 H5 + 小程序） ==========
+
+export function uploadImage(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const config = getCloudConfig()
+    if (!config) { reject(new Error('未连接服务器')); return }
+
+    const url = `${config.serverUrl.replace(/\/+$/, '')}/api/upload`
+
+    uni.uploadFile({
+      url,
+      filePath,
+      name: 'file',
+      success: (res) => {
+        try {
+          const data = JSON.parse(res.data as string)
+          if (res.statusCode >= 400) reject(new Error(data.error || '上传失败'))
+          else resolve(config.serverUrl.replace(/\/+$/, '') + data.url)
+        } catch {
+          reject(new Error('上传返回格式错误'))
+        }
+      },
+      fail: (err) => reject(new Error(err.errMsg || '网络请求失败')),
+    })
+  })
+}
 
 // ========== 家庭 API（无需 familyId） ==========
 
@@ -107,7 +142,7 @@ export const familyApi = {
 
   /** 加入家庭（无需 familyId） */
   join: (inviteCode: string, name: string) =>
-    post<{ familyId: string; memberId: string; name: string; familyName: string }>(
+    post<{ familyId: string; memberId: string; name: string; familyName: string; members?: any[] }>(
       '/api/families/join', { inviteCode, name }, false
     ),
 
@@ -134,6 +169,10 @@ export const familyApi = {
 // ========== 成员 API ==========
 
 export const memberApi = {
+  /** 添加成员 */
+  create: (data: { name: string; avatar?: string; role?: string }) =>
+    post<{ id: string }>(`/api/families/${getCloudConfig()?.familyId}/members`, data),
+
   update: (memberId: string, data: { name?: string; avatar?: string; role?: string }) =>
     put(`/api/families/${getCloudConfig()?.familyId}/members/${memberId}`, data),
 

@@ -1,8 +1,32 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useMealStore } from '@/store/meal'
 
 const store = useMealStore()
+
+// 30 秒轮询，自动保持最新
+let timer: ReturnType<typeof setInterval> | null = null
+onShow(() => {
+  store.syncFromCloud()
+  if (!timer) timer = setInterval(() => store.syncFromCloud(), 30000)
+})
+onUnmounted(() => {
+  if (timer) { clearInterval(timer); timer = null }
+})
+
+// 下拉刷新
+onPullDownRefresh(async () => {
+  try {
+    await Promise.race([
+      store.syncFromCloud(),
+      new Promise(resolve => setTimeout(resolve, 20000)),
+    ])
+    uni.showToast({ title: '已刷新', icon: 'success', duration: 800 })
+  } finally {
+    uni.stopPullDownRefresh()
+  }
+})
 
 // ===== 个人资料编辑 =====
 const editId = ref('')
@@ -27,10 +51,9 @@ function isImageUrl(s: string) { return s && (s.startsWith('http') || s.startsWi
 
 // ===== 成员管理 =====
 const showInvite = ref(false)
-const inviteInput = ref('')
 
-function doInvite() {
-  store.generateInviteCode()
+async function doInvite() {
+  await store.generateInviteCode()
   showInvite.value = true
 }
 
@@ -39,19 +62,6 @@ function copyInviteCode() {
     data: store.inviteCode,
     success: () => uni.showToast({ title: '已复制', icon: 'success' }),
   })
-}
-
-function useInvite() {
-  const code = inviteInput.value.trim()
-  if (!code) { uni.showToast({ title: '请输入邀请码', icon: 'none' }); return }
-  const name = store.currentUser?.name || '新成员'
-  const member = store.useInviteCode(code, name)
-  if (member) {
-    uni.showToast({ title: '加入成功！', icon: 'success' })
-    inviteInput.value = ''
-  } else {
-    uni.showToast({ title: '邀请码无效或已过期', icon: 'none' })
-  }
 }
 
 function delMember(id: string, name: string) {
@@ -105,8 +115,8 @@ function dissolveFamily() {
     confirmText: '确认解散',
     success: async (r) => {
       if (!r.confirm) return
-      await store.dissolveFamily()
-      uni.reLaunch({ url: '/pages/family/setup' })
+      const ok = await store.dissolveFamily()
+      if (ok) uni.reLaunch({ url: '/pages/family/setup' })
     },
   })
 }
@@ -180,9 +190,9 @@ function fmt(iso: string) {
 
       <!-- 邀请码 -->
       <view v-if="showInvite" class="invite-box">
-        <text class="invite-title">邀请码（一次性）</text>
+        <text class="invite-title">📨 邀请码</text>
         <text class="invite-code">{{ store.inviteCode }}</text>
-        <text class="invite-hint">分享此邀请码给家人，30分钟内有效</text>
+        <text class="invite-hint">分享此邀请码给家人，7天内有效</text>
         <view class="invite-acts">
           <text class="btn" @click="copyInviteCode">📋 复制</text>
           <text class="btn-c" @click="showInvite = false; store.clearInviteCode()">关闭</text>
@@ -216,17 +226,6 @@ function fmt(iso: string) {
           <text class="ab as" @click="confirmEdit">✓</text>
           <text class="ab" @click="editId = ''">✕</text>
         </view>
-      </view>
-    </view>
-
-    <!-- ===== 加入家庭（普通成员） ===== -->
-    <view class="sec" v-if="!store.isAdmin">
-      <view class="sh">
-        <text class="title">📨 加入家庭</text>
-      </view>
-      <view class="add-form">
-        <input v-model="inviteInput" class="inp" placeholder="输入管理员分享的邀请码" />
-        <text class="btn" @click="useInvite">加入</text>
       </view>
     </view>
 
@@ -384,4 +383,5 @@ function fmt(iso: string) {
 .o-time { font-size: 22rpx; color: var(--color-text-secondary); }
 .o-qty { font-size: 20rpx; background: #FFF0E8; color: var(--color-primary); padding: 1rpx 10rpx; border-radius: 8rpx; margin-left: auto; }
 .o-items { font-size: 24rpx; line-height: 1.5; display: block; }
+
 </style>

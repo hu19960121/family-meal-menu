@@ -1,158 +1,263 @@
 /**
- * 基于 JSON 文件的轻量数据库
+ * MongoDB 数据库层
  *
- * 整个数据库就是 data/ 目录下的一堆 JSON 文件，
- * 每个家庭一个文件夹。适合低并发场景（3-5 人家庭）。
+ * 替代原来的 JSON 文件存储，数据持久化不丢失。
+ * 保持与 server/index.js 完全兼容的 API 接口。
+ *
+ * 环境变量 MONGO_URI 用于配置连接地址（Render 上设置）。
+ * 默认连接本地 MongoDB（开发用）。
  */
 
-const fs = require('fs')
-const path = require('path')
+const mongoose = require('mongoose')
 
-const DATA_DIR = path.join(__dirname, 'data')
+// ====== 连接 ======
 
-function ensureDir(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-}
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/family-meal-menu'
 
-// ====== 文件路径 ======
+async function connect() {
+  await mongoose.connect(MONGO_URI)
+  console.log(`  📦 MongoDB 已连接`)
 
-function familyDir(familyId) {
-  return path.join(DATA_DIR, familyId)
-}
-
-function filePath(familyId, name) {
-  return path.join(familyDir(familyId), name + '.json')
-}
-
-function readJSON(file) {
-  try {
-    const data = fs.readFileSync(file, 'utf-8')
-    return JSON.parse(data)
-  } catch {
-    return null
+  // 清理旧数据
+  const [orphanMembers, orphanRecipes, orphanCart, orphanOrders, cleanCodes] = await Promise.all([
+    Member.deleteMany({ familyId: { $exists: false } }),
+    Recipe.deleteMany({ familyId: { $exists: false } }),
+    CartItem.deleteMany({ familyId: { $exists: false } }),
+    Order.deleteMany({ familyId: { $exists: false } }),
+    // 清除所有只有1人的家庭的邀请码（测试残留,防冲突）
+    Family.updateMany(
+      {},
+      { $set: { inviteCode: null, inviteExpiry: null } }
+    ),
+  ])
+  const total = orphanMembers.deletedCount + orphanRecipes.deletedCount + orphanCart.deletedCount + orphanOrders.deletedCount
+  if (total > 0) {
+    console.log(`  🧹 已清理 ${total} 条缺少 familyId 的旧数据`)
   }
 }
 
-function writeJSON(file, data) {
-  ensureDir(path.dirname(file))
-  fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8')
+// ====== Schema 定义 ======
+
+const familySchema = new mongoose.Schema({
+  _id: String,
+  name: String,
+  inviteCode: { type: String, default: null },
+  inviteExpiry: { type: Number, default: null },
+  createdAt: String,
+})
+
+const memberSchema = new mongoose.Schema({
+  _id: String,
+  familyId: { type: String, index: true },
+  name: String,
+  avatar: String,
+  role: { type: String, enum: ['creator', 'admin', 'member'], default: 'member' },
+  createdAt: String,
+})
+
+const recipeSchema = new mongoose.Schema({
+  _id: String,
+  familyId: { type: String, index: true },
+  name: String,
+  category: String,
+  coverImage: String,
+  cookingTime: Number,
+  difficulty: Number,
+  servings: Number,
+  tags: [String],
+  nutritions: mongoose.Schema.Types.Mixed,
+  ingredients: [mongoose.Schema.Types.Mixed],
+  steps: [mongoose.Schema.Types.Mixed],
+  orderCount: { type: Number, default: 0 },
+  createdAt: String,
+  updatedAt: String,
+})
+
+const cartItemSchema = new mongoose.Schema({
+  _id: String,
+  familyId: { type: String, index: true },
+  recipeId: String,
+  recipeName: String,
+  recipeCategory: String,
+  cookName: String,
+  quantity: { type: Number, default: 1 },
+})
+
+const orderSchema = new mongoose.Schema({
+  _id: String,
+  familyId: { type: String, index: true },
+  items: [mongoose.Schema.Types.Mixed],
+  memberId: String,
+  memberName: String,
+  createdAt: String,
+})
+
+const Family = mongoose.model('Family', familySchema)
+const Member = mongoose.model('Member', memberSchema)
+const Recipe = mongoose.model('Recipe', recipeSchema)
+const CartItem = mongoose.model('CartItem', cartItemSchema)
+const Order = mongoose.model('Order', orderSchema)
+
+// ====== 辅助函数 ======
+
+/** 将 MongoDB 文档转为带 id 字段的普通对象 */
+function toPlain(doc) {
+  if (!doc) return null
+  const obj = typeof doc.toObject === 'function' ? doc.toObject() : doc
+  return { ...obj, id: String(obj._id) }
 }
 
-// ====== 家庭 ======
-
-function listFamilies() {
-  ensureDir(DATA_DIR)
-  const dirs = fs.readdirSync(DATA_DIR, { withFileTypes: true })
-    .filter(d => d.isDirectory())
-    .map(d => d.name)
-  return dirs.map(id => readJSON(filePath(id, 'info'))).filter(Boolean)
+function toPlainMany(docs) {
+  return docs.map(d => toPlain(d))
 }
 
-function getFamily(id) {
-  return readJSON(filePath(id, 'info'))
+/** 去除文档中的 _id/id 字段，避免 $set 覆写 _id */
+function stripId(obj) {
+  if (!obj) return obj
+  const { _id, id, ...rest } = obj
+  return rest
 }
 
-function saveFamily(family) {
-  writeJSON(filePath(family.id, 'info'), family)
-}
-
-// ====== 通用 CRUD ======
-
-function getAll(familyId, collection) {
-  const file = filePath(familyId, collection)
-  return readJSON(file) || []
-}
-
-function saveAll(familyId, collection, data) {
-  writeJSON(filePath(familyId, collection), data)
-}
-
-function getById(familyId, collection, id) {
-  const items = getAll(familyId, collection)
-  return items.find(i => i.id === id) || null
-}
-
-function addItem(familyId, collection, item) {
-  const items = getAll(familyId, collection)
-  items.push(item)
-  saveAll(familyId, collection, items)
-  return item
-}
-
-function updateItem(familyId, collection, id, updates) {
-  const items = getAll(familyId, collection)
-  const idx = items.findIndex(i => i.id === id)
-  if (idx === -1) return null
-  items[idx] = { ...items[idx], ...updates }
-  saveAll(familyId, collection, items)
-  return items[idx]
-}
-
-function removeItem(familyId, collection, id) {
-  const items = getAll(familyId, collection)
-  const filtered = items.filter(i => i.id !== id)
-  if (filtered.length === items.length) return false
-  saveAll(familyId, collection, filtered)
-  return true
-}
-
-function clearCollection(familyId, collection) {
-  saveAll(familyId, collection, [])
-}
-
-// ====== 导出的数据库接口（兼容之前的路由代码） ======
+// ====== 数据库 API（与原 db.js 完全一致） ======
 
 const db = {
-  // 家庭
+  // ---------- 家庭 ----------
   families: {
-    list: listFamilies,
-    get: getFamily,
-    save: saveFamily,
-    remove: (familyId) => {
-      const dir = familyDir(familyId)
-      if (!fs.existsSync(dir)) return false
-      try {
-        // 逐个删除文件再删目录（比 fs.rmSync 更可靠的跨平台方案）
-        const entries = fs.readdirSync(dir)
-        for (const entry of entries) {
-          fs.unlinkSync(path.join(dir, entry))
-        }
-        fs.rmdirSync(dir)
-        return true
-      } catch {
-        return false
-      }
+    list: async () => {
+      const docs = await Family.find().lean()
+      return docs.map(d => ({ ...d, id: String(d._id) }))
+    },
+
+    get: async (id) => {
+      const doc = await Family.findById(String(id)).lean()
+      if (!doc) return null
+      return { ...doc, id: String(doc._id) }
+    },
+
+    save: async (data) => {
+      await Family.findByIdAndUpdate(
+        String(data.id || data._id),
+        { $set: stripId(data) },
+        { upsert: true }
+      )
+    },
+
+    remove: async (familyId) => {
+      await Family.findByIdAndDelete(String(familyId))
+      await Member.deleteMany({ familyId: String(familyId) })
+      await Recipe.deleteMany({ familyId: String(familyId) })
+      await CartItem.deleteMany({ familyId: String(familyId) })
+      await Order.deleteMany({ familyId: String(familyId) })
+      return true
     },
   },
-  // 成员
+
+  // ---------- 成员 ----------
   members: {
-    getAll: (familyId) => getAll(familyId, 'members'),
-    getById: (familyId, id) => getById(familyId, 'members', id),
-    add: (familyId, member) => addItem(familyId, 'members', member),
-    update: (familyId, id, updates) => updateItem(familyId, 'members', id, updates),
-    remove: (familyId, id) => removeItem(familyId, 'members', id),
+    getAll: async (familyId) => {
+      const docs = await Member.find({ familyId: String(familyId) }).lean()
+      return docs.map(d => ({ ...d, id: String(d._id) }))
+    },
+
+    getById: async (familyId, id) => {
+      const doc = await Member.findOne({ _id: String(id), familyId: String(familyId) }).lean()
+      if (!doc) return null
+      return { ...doc, id: String(doc._id) }
+    },
+
+    add: async (familyId, member) => {
+      const doc = await Member.create({ ...member, _id: String(member.id || member._id), familyId: String(familyId) })
+      return toPlain(doc)
+    },
+
+    update: async (familyId, id, updates) => {
+      const doc = await Member.findOneAndUpdate(
+        { _id: String(id), familyId: String(familyId) },
+        { $set: stripId(updates) },
+        { new: true }
+      )
+      return toPlain(doc)
+    },
+
+    remove: async (familyId, id) => {
+      const r = await Member.deleteOne({ _id: String(id), familyId: String(familyId) })
+      return r.deletedCount > 0
+    },
   },
-  // 食谱
+
+  // ---------- 食谱 ----------
   recipes: {
-    getAll: (familyId) => getAll(familyId, 'recipes'),
-    getById: (familyId, id) => getById(familyId, 'recipes', id),
-    add: (familyId, recipe) => addItem(familyId, 'recipes', recipe),
-    update: (familyId, id, updates) => updateItem(familyId, 'recipes', id, updates),
-    remove: (familyId, id) => removeItem(familyId, 'recipes', id),
-    clear: (familyId) => clearCollection(familyId, 'recipes'),
+    getAll: async (familyId) => {
+      const docs = await Recipe.find({ familyId: String(familyId) }).lean()
+      return docs.map(d => ({ ...d, id: String(d._id) }))
+    },
+
+    getById: async (familyId, id) => {
+      const doc = await Recipe.findOne({ _id: String(id), familyId: String(familyId) }).lean()
+      if (!doc) return null
+      return { ...doc, id: String(doc._id) }
+    },
+
+    add: async (familyId, recipe) => {
+      const doc = await Recipe.create({ ...recipe, _id: String(recipe.id || recipe._id), familyId: String(familyId) })
+      return toPlain(doc)
+    },
+
+    update: async (familyId, id, updates) => {
+      const doc = await Recipe.findOneAndUpdate(
+        { _id: String(id), familyId: String(familyId) },
+        { $set: stripId(updates) },
+        { new: true }
+      )
+      return toPlain(doc)
+    },
+
+    remove: async (familyId, id) => {
+      const r = await Recipe.deleteOne({ _id: String(id), familyId: String(familyId) })
+      return r.deletedCount > 0
+    },
+
+    clear: async (familyId) => {
+      await Recipe.deleteMany({ familyId: String(familyId) })
+    },
   },
-  // 购物车
+
+  // ---------- 购物车 ----------
   cart: {
-    getAll: (familyId) => getAll(familyId, 'cart'),
-    add: (familyId, item) => addItem(familyId, 'cart', item),
-    remove: (familyId, id) => removeItem(familyId, 'cart', id),
-    clear: (familyId) => clearCollection(familyId, 'cart'),
+    getAll: async (familyId) => {
+      const docs = await CartItem.find({ familyId: String(familyId) }).lean()
+      return docs.map(d => ({ ...d, id: String(d._id) }))
+    },
+
+    add: async (familyId, item) => {
+      const doc = await CartItem.create({ ...item, _id: String(item.id || item._id), familyId: String(familyId) })
+      return toPlain(doc)
+    },
+
+    remove: async (familyId, id) => {
+      const r = await CartItem.deleteOne({ _id: String(id), familyId: String(familyId) })
+      return r.deletedCount > 0
+    },
+
+    clear: async (familyId) => {
+      await CartItem.deleteMany({ familyId: String(familyId) })
+    },
   },
-  // 订单
+
+  // ---------- 订单 ----------
   orders: {
-    getAll: (familyId) => getAll(familyId, 'orders'),
-    add: (familyId, order) => addItem(familyId, 'orders', order),
+    getAll: async (familyId) => {
+      const docs = await Order.find({ familyId: String(familyId) })
+        .sort({ createdAt: -1 })
+        .lean()
+      return docs.map(d => ({ ...d, id: String(d._id) }))
+    },
+
+    add: async (familyId, order) => {
+      const doc = await Order.create({ ...order, _id: String(order.id || order._id), familyId: String(familyId) })
+      return toPlain(doc)
+    },
   },
 }
 
-module.exports = { db, ensureDir }
+module.exports = { db, connect, mongoose, MONGO_URI }

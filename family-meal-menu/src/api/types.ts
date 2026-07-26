@@ -44,5 +44,6 @@ export interface Order {
 }
 
 export interface CartItem {
+  id?: number | string        // 服务端购物车条目 ID（本地创建的条目可能没有）
   recipeId: string; recipeName: string; recipeCategory: RecipeCategory; cookName: string; quantity: number
 }
