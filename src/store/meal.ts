@@ -77,8 +77,6 @@ export const useMealStore = defineStore('meal', () => {
     save('family_recipes', [])
     save('family_cart', [])
     save('family_orders', [])
-    // 跳转到设置页
-    uni.reLaunch({ url: '/pages/family/setup' })
   }
 
   // ==================== 云端同步 ====================
@@ -96,6 +94,7 @@ export const useMealStore = defineStore('meal', () => {
       if (!members.value.find(m => m.id === myId)) {
         uni.showToast({ title: '你已被移出家庭', icon: 'none' })
         resetFamily()
+        uni.reLaunch({ url: '/pages/family/setup' })
         return
       }
       currentUserId.value = myId

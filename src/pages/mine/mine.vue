@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useMealStore } from '@/store/meal'
 
 const store = useMealStore()
+
+// 每次进入刷新数据
+onShow(() => {
+  store.syncFromCloud()
+})
 
 // ===== 个人资料编辑 =====
 const editId = ref('')
@@ -105,8 +111,8 @@ function dissolveFamily() {
     confirmText: '确认解散',
     success: async (r) => {
       if (!r.confirm) return
-      await store.dissolveFamily()
-      uni.reLaunch({ url: '/pages/family/setup' })
+      const ok = await store.dissolveFamily()
+      if (ok) uni.reLaunch({ url: '/pages/family/setup' })
     },
   })
 }
@@ -180,9 +186,9 @@ function fmt(iso: string) {
 
       <!-- 邀请码 -->
       <view v-if="showInvite" class="invite-box">
-        <text class="invite-title">邀请码（一次性）</text>
+        <text class="invite-title">📨 邀请码</text>
         <text class="invite-code">{{ store.inviteCode }}</text>
-        <text class="invite-hint">分享此邀请码给家人，30分钟内有效</text>
+        <text class="invite-hint">分享此邀请码给家人，7天内有效</text>
         <view class="invite-acts">
           <text class="btn" @click="copyInviteCode">📋 复制</text>
           <text class="btn-c" @click="showInvite = false; store.clearInviteCode()">关闭</text>

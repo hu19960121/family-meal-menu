@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useMealStore } from '@/store/meal'
 import { RecipeCategoryLabels, RecipeCategoryIcons } from '@/api/types'
 import type { RecipeCategory } from '@/api/types'
 
 const store = useMealStore()
+
+// 每次进入首页自动从服务器同步最新数据
+onShow(() => {
+  store.syncFromCloud()
+})
 
 const activeCategory = ref<RecipeCategory | 'all'>('all')
 const searchKeyword = ref('')
