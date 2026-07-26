@@ -93,17 +93,15 @@ export const useMealStore = defineStore('meal', () => {
       console.log('[sync] 开始同步 familyId:', config?.familyId)
       const fam = await familyApi.get(config.familyId)
       console.log('[sync] 获取到成员数:', fam?.members?.length)
-      // 调试：显示服务器地址和成员数，排查两台手机是否连的不同服务器
-      if (fam?.members?.length !== undefined) {
-        const shortUrl = (config?.serverUrl || '').replace(/^https?:\/\//, '').slice(0, 20)
-        const cfgId = (config?.familyId || '?').slice(0, 12)
-        const apiId = (fam?.id || '?').slice(0, 12)
-        uni.showToast({
-          title: `配置:${cfgId} API:${apiId} ${fam.members.length}位`,
-          icon: 'none',
-          duration: 2500,
+      // 调试信息存到本地，页面上展示
+      try {
+        uni.setStorageSync('debug_sync_info', {
+          cfgFamilyId: config?.familyId,
+          apiFamilyId: fam?.id,
+          memberCount: fam?.members?.length,
+          members: fam?.members?.map((m: any) => m.name || m.id),
         })
-      }
+      } catch {}
       familyInfo.value = { name: fam.name, createdAt: fam.createdAt }
       members.value = fam.members as FamilyMember[]
 

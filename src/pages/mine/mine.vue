@@ -5,10 +5,23 @@ import { useMealStore } from '@/store/meal'
 
 const store = useMealStore()
 
+// 调试信息
+const debugShow = ref(false)
+const debugInfo = ref({
+  cfgFamilyId: '',
+  apiFamilyId: '',
+  memberCount: 0,
+  members: [] as string[],
+})
 // 30 秒轮询，自动保持最新
 let timer: ReturnType<typeof setInterval> | null = null
 onShow(() => {
   store.syncFromCloud()
+  // 每次进入时读取调试信息
+  try {
+    const d = uni.getStorageSync('debug_sync_info')
+    if (d) debugInfo.value = d
+  } catch {}
   if (!timer) timer = setInterval(() => store.syncFromCloud(), 30000)
 })
 onUnmounted(() => {
@@ -283,6 +296,17 @@ function fmt(iso: string) {
       </view>
     </view>
 
+    <!-- 调试信息 -->
+    <view class="sec debug-box" @click="debugShow = !debugShow">
+      <text class="title">🛠 调试 {{ debugShow ? '▼' : '▶' }}</text>
+      <view v-if="debugShow">
+        <text class="dbg-line">配置ID: {{ debugInfo.cfgFamilyId }}</text>
+        <text class="dbg-line">API-ID: {{ debugInfo.apiFamilyId }}</text>
+        <text class="dbg-line">成员数: {{ debugInfo.memberCount }}</text>
+        <text class="dbg-line">成员列表: {{ debugInfo.members?.join(', ') }}</text>
+      </view>
+    </view>
+
     <view class="ver">家庭餐单 v1.0</view>
   </view>
 </template>
@@ -383,4 +407,8 @@ function fmt(iso: string) {
 .o-time { font-size: 22rpx; color: var(--color-text-secondary); }
 .o-qty { font-size: 20rpx; background: #FFF0E8; color: var(--color-primary); padding: 1rpx 10rpx; border-radius: 8rpx; margin-left: auto; }
 .o-items { font-size: 24rpx; line-height: 1.5; display: block; }
+
+// ---------- 调试 ----------
+.debug-box { background: #F8F8F8 !important; border: 1rpx dashed #CCC; }
+.dbg-line { font-size: 20rpx; color: #666; display: block; margin: 2rpx 0; font-family: monospace; }
 </style>
