@@ -93,6 +93,10 @@ export const useMealStore = defineStore('meal', () => {
       console.log('[sync] 开始同步 familyId:', config?.familyId)
       const fam = await familyApi.get(config.familyId)
       console.log('[sync] 获取到成员数:', fam?.members?.length)
+      // 调试：用 toast 显示服务器返回的成员数
+      if (fam?.members?.length !== undefined) {
+        uni.showToast({ title: `同步完成: ${fam.members.length}位成员`, icon: 'none', duration: 1500 })
+      }
       familyInfo.value = { name: fam.name, createdAt: fam.createdAt }
       members.value = fam.members as FamilyMember[]
 
