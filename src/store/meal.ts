@@ -34,6 +34,7 @@ export const useMealStore = defineStore('meal', () => {
   // ==================== 云端模式状态 ====================
   const cloudMode = ref(isOnline())
   const syncing = ref(false)
+  let _syncingCount = 0 // 调试用
 
   // ==================== 家庭信息 ====================
   const familyInfo = ref<FamilyInfo>(load('family_info', { name: '', createdAt: '' }))
@@ -103,9 +104,10 @@ export const useMealStore = defineStore('meal', () => {
       return
     }
 
+    debugStep.value = `step3a-准备设置syncing count=${++_syncingCount}`
     syncing.value = true
+    debugStep.value = 'step3b-syncing已设'
     try {
-
       debugStep.value = 'step4-请求API中'
       const fam = await familyApi.get(config.familyId)
       debugStep.value = `step5-API完成 ${fam?.members?.length}人`
