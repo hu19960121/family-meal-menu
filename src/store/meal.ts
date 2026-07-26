@@ -93,16 +93,18 @@ export const useMealStore = defineStore('meal', () => {
     } catch { return }
 
     debugStep.value = 'step2-通过online检查'
+    // 先读配置
+    let config
+    try {
+      config = getCloudConfig()!
+      debugStep.value = `step3-配置=${config?.familyId}`
+    } catch (e: any) {
+      debugStep.value = `step3b-失败 ${String(e).slice(0,40)}`
+      return
+    }
+
     syncing.value = true
     try {
-      let config
-      try {
-        config = getCloudConfig()!
-        debugStep.value = `step3-有配置 familyId=${config?.familyId}`
-      } catch {
-        debugStep.value = 'step3b-配置失败'
-        return
-      }
 
       debugStep.value = 'step4-请求API中'
       const fam = await familyApi.get(config.familyId)
