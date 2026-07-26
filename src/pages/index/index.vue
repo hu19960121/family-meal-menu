@@ -27,7 +27,7 @@ async function onRefresh() {
     // 给同步加 12 秒超时，防止请求卡死导致刷新一直转
     await Promise.race([
       store.syncFromCloud(),
-      new Promise(resolve => setTimeout(resolve, 12000)),
+      new Promise(resolve => setTimeout(resolve, 20000)),
     ])
     uni.showToast({ title: '已刷新', icon: 'success', duration: 800 })
   } finally {

@@ -5,18 +5,20 @@ import { getCloudConfig, saveCloudConfig } from '@/api/client'
 
 const store = useMealStore()
 
-// 如果已经初始化（有家庭数据），直接跳到主页面
+// 服务端地址（从之前保存的配置中恢复）
+const savedConfig = getCloudConfig()
+const serverUrl = ref(savedConfig?.serverUrl || 'https://family-meal-menu.onrender.com')
+
+// 唤醒服务器（Render 免费版 15 分钟无请求会休眠）
 onMounted(() => {
+  uni.request({ url: serverUrl.value + '/api/families', method: 'GET', timeout: 30000, fail: () => {} })
+
   if (store.isInitialized) {
     uni.switchTab({ url: '/pages/index/index' })
   }
 })
 
 const tab = ref<'create' | 'join'>('create')
-
-// 服务端地址（从之前保存的配置中恢复）
-const savedConfig = getCloudConfig()
-const serverUrl = ref(savedConfig?.serverUrl || 'https://family-meal-menu.onrender.com')
 
 // 创建家庭
 const familyName = ref('')

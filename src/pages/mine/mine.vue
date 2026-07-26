@@ -20,7 +20,7 @@ onPullDownRefresh(async () => {
   try {
     await Promise.race([
       store.syncFromCloud(),
-      new Promise(resolve => setTimeout(resolve, 12000)),
+      new Promise(resolve => setTimeout(resolve, 20000)),
     ])
     uni.showToast({ title: '已刷新', icon: 'success', duration: 800 })
   } finally {

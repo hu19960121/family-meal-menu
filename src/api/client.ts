@@ -76,7 +76,7 @@ function request<T>(method: string, path: string, body?: any, requireFamily = tr
       method: method as any,
       header,
       data: body,
-      timeout: 10000,
+      timeout: 30000,
       success: (res) => {
         if (timer) clearTimeout(timer)
         const data = res.data as any
@@ -95,7 +95,7 @@ function request<T>(method: string, path: string, body?: any, requireFamily = tr
     timer = setTimeout(() => {
       if (req && 'abort' in req) (req as any).abort()
       reject(new Error('请求超时'))
-    }, 15000)
+    }, 35000)
   })
 }
 
