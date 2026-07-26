@@ -81,7 +81,7 @@ export const useMealStore = defineStore('meal', () => {
 
   // ==================== 云端同步 ====================
   async function syncFromCloud() {
-    if (!isOnline()) return
+    if (!isOnline() || syncing.value) return
     syncing.value = true
     try {
       const config = getCloudConfig()!
@@ -235,16 +235,18 @@ export const useMealStore = defineStore('meal', () => {
     return true
   }
 
-  function generateInviteCode(): string {
+  async function generateInviteCode(): Promise<string> {
+    if (cloudMode.value) {
+      try {
+        const r = await familyApi.generateInvite()
+        inviteCode.value = r.inviteCode
+        save('invite_code', r.inviteCode)
+        return inviteCode.value
+      } catch { /* API 失败则降级为本地生成 */ }
+    }
     const code = Math.random().toString(36).slice(2, 8).toUpperCase()
     inviteCode.value = code
     save('invite_code', code)
-    if (cloudMode.value) {
-      familyApi.generateInvite().then(r => {
-        inviteCode.value = r.inviteCode
-        save('invite_code', r.inviteCode)
-      }).catch(() => {})
-    }
     return inviteCode.value
   }
 

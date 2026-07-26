@@ -35,8 +35,8 @@ function isImageUrl(s: string) { return s && (s.startsWith('http') || s.startsWi
 const showInvite = ref(false)
 const inviteInput = ref('')
 
-function doInvite() {
-  store.generateInviteCode()
+async function doInvite() {
+  await store.generateInviteCode()
   showInvite.value = true
 }
 
