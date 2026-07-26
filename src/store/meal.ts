@@ -96,8 +96,9 @@ export const useMealStore = defineStore('meal', () => {
       // 调试：显示服务器地址和成员数，排查两台手机是否连的不同服务器
       if (fam?.members?.length !== undefined) {
         const shortUrl = (config?.serverUrl || '').replace(/^https?:\/\//, '').slice(0, 20)
+        const shortId = (config?.familyId || '').slice(0, 12)
         uni.showToast({
-          title: `[${shortUrl}] ${fam.members.length}位成员`,
+          title: `[${shortUrl} id:${shortId}] ${fam.members.length}位`,
           icon: 'none',
           duration: 2000,
         })
