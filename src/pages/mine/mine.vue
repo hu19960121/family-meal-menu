@@ -302,7 +302,7 @@ function fmt(iso: string) {
     <view class="sec debug-box" @click="debugShow = !debugShow">
       <text class="title">🛠 调试 {{ debugShow ? '▼' : '▶' }}</text>
       <view v-if="debugShow">
-        <text class="dbg-line">步骤: {{ debugStep }}</text>
+        <text class="dbg-line">步骤: {{ store.debugStep }}</text>
         <text class="dbg-line">配置ID: {{ debugInfo.cfgFamilyId }}</text>
         <text class="dbg-line">API-ID: {{ debugInfo.apiFamilyId }}</text>
         <text class="dbg-line">成员数: {{ debugInfo.memberCount }}</text>

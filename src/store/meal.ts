@@ -28,6 +28,9 @@ export interface RecipeInput {
 export const useMealStore = defineStore('meal', () => {
   const AVATARS = ['👨', '👩', '👶', '👴', '👵', '🧑', '👦', '👧', '🐶', '🐱', '🦊', '🐼']
 
+  // 调试状态
+  const debugStep = ref('')
+
   // ==================== 云端模式状态 ====================
   const cloudMode = ref(isOnline())
   const syncing = ref(false)
@@ -81,39 +84,29 @@ export const useMealStore = defineStore('meal', () => {
 
   // ==================== 云端同步 ====================
   async function syncFromCloud() {
-    // 每步都 save 并 console.log
-    console.log('[sync] STEP1 函数开始')
-    try { uni.setStorageSync('debug_step', 'step1-开始') } catch {}
-
+    debugStep.value = 'step1-开始'
     try {
       if (!isOnline()) {
-        console.log('[sync] STEP1b isOnline=false，跳过同步')
-        try { uni.setStorageSync('debug_step', 'step1b-offline') } catch {}
+        debugStep.value = 'step1b-offline'
         return
       }
     } catch { return }
 
-    console.log('[sync] STEP2 准备请求API')
-    try { uni.setStorageSync('debug_step', 'step2-准备请求') } catch {}
-
+    debugStep.value = 'step2-通过online检查'
     syncing.value = true
     try {
       let config
       try {
         config = getCloudConfig()!
-        console.log('[sync] STEP3 config:', config?.familyId, config?.serverUrl?.slice(0, 30))
-        try { uni.setStorageSync('debug_step', `step3-配置=${config?.familyId}`) } catch {}
+        debugStep.value = `step3-有配置 familyId=${config?.familyId}`
       } catch {
-        console.log('[sync] STEP3b 获取配置失败')
-        try { uni.setStorageSync('debug_step', 'step3b-配置失败') } catch {}
+        debugStep.value = 'step3b-配置失败'
         return
       }
 
-      console.log('[sync] STEP4 正在请求API familyId=', config?.familyId)
-      try { uni.setStorageSync('debug_step', 'step4-请求API中') } catch {}
+      debugStep.value = 'step4-请求API中'
       const fam = await familyApi.get(config.familyId)
-      console.log('[sync] STEP5 API返回:', fam?.id, '成员数:', fam?.members?.length)
-      try { uni.setStorageSync('debug_step', `step5-完成=${fam?.members?.length}人`) } catch {}
+      debugStep.value = `step5-API完成 ${fam?.members?.length}人`
 
       // 保存调试信息
       try {
@@ -534,7 +527,7 @@ export const useMealStore = defineStore('meal', () => {
     recipes, addRecipe, updateRecipe, deleteRecipe, getRecipeById,
     cart, cartCount, addToCart, removeFromCart, getCartQuantity, generateCart, clearCart,
     orders, placeOrder,
-    syncFromCloud,
+    syncFromCloud, debugStep,
     AVATARS,
   }
 })
