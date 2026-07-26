@@ -30,38 +30,42 @@ const categories = Object.entries(RecipeCategoryLabels).map(([k, v]) => ({
 }))
 
 async function chooseImage() {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: async (r) => {
-      uni.showLoading({ title: '上传中...' })
-      try {
-        form.coverImage = await uploadImage(r.tempFilePaths[0])
-      } catch (e: any) {
-        uni.showToast({ title: e.message || '上传失败', icon: 'none' })
-      } finally {
-        uni.hideLoading()
-      }
-    },
-  })
+  try {
+    const res = await uni.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+    })
+    uni.showLoading({ title: '上传中...' })
+    try {
+      form.coverImage = await uploadImage(res.tempFilePaths[0])
+    } catch (e: any) {
+      uni.showToast({ title: e.message || '上传失败', icon: 'none' })
+    } finally {
+      uni.hideLoading()
+    }
+  } catch {
+    // 用户取消选图，静默忽略
+  }
 }
 async function chooseStepImg(idx: number) {
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: async (r) => {
-      uni.showLoading({ title: '上传中...' })
-      try {
-        steps[idx].image = await uploadImage(r.tempFilePaths[0])
-      } catch (e: any) {
-        uni.showToast({ title: e.message || '上传失败', icon: 'none' })
-      } finally {
-        uni.hideLoading()
-      }
-    },
-  })
+  try {
+    const res = await uni.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+    })
+    uni.showLoading({ title: '上传中...' })
+    try {
+      steps[idx].image = await uploadImage(res.tempFilePaths[0])
+    } catch (e: any) {
+      uni.showToast({ title: e.message || '上传失败', icon: 'none' })
+    } finally {
+      uni.hideLoading()
+    }
+  } catch {
+    // 用户取消选图，静默忽略
+  }
 }
 
 function addIng() { ingredients.push({ name: '', amount: '', unit: '', category: 'main' }) }

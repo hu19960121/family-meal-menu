@@ -2,6 +2,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useMealStore } from '@/store/meal'
+import { uploadImage } from '@/api/client'
 
 const store = useMealStore()
 
@@ -41,11 +42,24 @@ function confirmEdit() {
 }
 function pickAvatar(id: string) { showAvatarPicker.value = id }
 function setAvatar(id: string, avatar: string) { store.updateMember(id, { avatar }); showAvatarPicker.value = '' }
-function uploadAvatar(id: string) {
-  uni.chooseImage({
-    count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'],
-    success: (r) => { store.updateMember(id, { avatar: r.tempFilePaths[0] }); uni.showToast({ title: '头像已更新', icon: 'success' }) },
-  })
+async function uploadAvatar(id: string) {
+  try {
+    const r = await uni.chooseImage({
+      count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'],
+    })
+    uni.showLoading({ title: '上传中...' })
+    try {
+      const url = await uploadImage(r.tempFilePaths[0])
+      store.updateMember(id, { avatar: url })
+      uni.showToast({ title: '头像已更新', icon: 'success' })
+    } catch (e: any) {
+      uni.showToast({ title: e.message || '上传失败', icon: 'none' })
+    } finally {
+      uni.hideLoading()
+    }
+  } catch {
+    // 用户取消选图，静默忽略
+  }
 }
 function isImageUrl(s: string) { return s && (s.startsWith('http') || s.startsWith('data:') || s.startsWith('/') || s.startsWith('blob:')) }
 

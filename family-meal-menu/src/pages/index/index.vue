@@ -129,9 +129,9 @@ function goCart() {
           <text class="search-icon">🔍</text>
         </view>
 
-        <view v-for="r in filteredRecipes" :key="r.id" class="card" @click="goDetail(r)">
-          <!-- 封面 -->
-          <view class="card-cover" :style="{ background: coverColor(r.id) }">
+        <view v-for="r in filteredRecipes" :key="r.id" class="card">
+          <!-- 封面（点击跳转详情/编辑） -->
+          <view class="card-cover" :style="{ background: coverColor(r.id) }" @click="goDetail(r)">
             <image v-if="r.coverImage" :src="r.coverImage" class="cover-img" mode="aspectFill" />
             <text v-else class="cover-emoji">{{ RecipeCategoryIcons[r.category] }}</text>
           </view>
