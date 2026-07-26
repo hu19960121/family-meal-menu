@@ -83,7 +83,7 @@ function validate(): boolean {
   return true
 }
 
-function save() {
+async function save() {
   if (!validate()) return
 
   const data: RecipeInput = {
@@ -107,14 +107,21 @@ function save() {
     })),
   }
 
-  if (isEdit.value) {
-    store.updateRecipe(editId.value, data)
-    uni.showToast({ title: '已更新', icon: 'success' })
-  } else {
-    store.addRecipe(data)
-    uni.showToast({ title: '已创建', icon: 'success' })
+  uni.showLoading({ title: '保存中...' })
+  try {
+    if (isEdit.value) {
+      await store.updateRecipe(editId.value, data)
+      uni.showToast({ title: '已更新', icon: 'success' })
+    } else {
+      await store.addRecipe(data)
+      uni.showToast({ title: '已创建', icon: 'success' })
+    }
+    setTimeout(() => uni.navigateBack(), 800)
+  } catch {
+    // 错误已由 store 中处理
+  } finally {
+    uni.hideLoading()
   }
-  setTimeout(() => uni.navigateBack(), 800)
 }
 
 onLoad((opts: any) => {

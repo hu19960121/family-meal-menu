@@ -14,8 +14,19 @@ onLoad((opts: any) => { recipeId.value = opts?.id || ''; recipe.value = store.ge
 const diffLabel = computed(() => recipe.value ? ['简单','中等','困难'][recipe.value.difficulty - 1] : '')
 
 function goEdit() { uni.navigateTo({ url: `/pages/recipe/recipe-edit?id=${recipeId.value}` }) }
-function del() {
-  uni.showModal({ title: '确认删除', content: `确定删除「${recipe.value?.name}」？`, success: (r) => { if (r.confirm) { store.deleteRecipe(recipeId.value); uni.showToast({ title: '已删除', icon: 'success' }); setTimeout(() => uni.navigateBack(), 800) } } })
+async function del() {
+  uni.showModal({
+    title: '确认删除',
+    content: `确定删除「${recipe.value?.name}」？`,
+    success: async (r) => {
+      if (!r.confirm) return
+      uni.showLoading({ title: '删除中...' })
+      await store.deleteRecipe(recipeId.value)
+      uni.hideLoading()
+      uni.showToast({ title: '已删除', icon: 'success' })
+      setTimeout(() => uni.navigateBack(), 800)
+    },
+  })
 }
 </script>
 

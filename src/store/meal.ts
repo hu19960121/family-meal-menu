@@ -309,40 +309,70 @@ export const useMealStore = defineStore('meal', () => {
 
   const recipes = ref<Recipe[]>(isInitialized.value ? load('family_recipes', []) : [])
 
-  function addRecipe(input: RecipeInput): string {
+  async function addRecipe(input: RecipeInput): Promise<string> {
     const now = new Date().toISOString()
+    const localId = 'r_' + Date.now()
+
+    if (cloudMode.value) {
+      // 先同步到服务器，获得真实ID
+      try {
+        const result = await recipeApi.create(input)
+        const recipe: Recipe = {
+          ...input,
+          id: result.id,
+          orderCount: 0,
+          createdAt: now,
+          updatedAt: now,
+        }
+        recipes.value.unshift(recipe)
+        save('family_recipes', recipes.value)
+        return result.id
+      } catch {
+        uni.showToast({ title: '创建食谱失败，请检查网络', icon: 'none' })
+        throw new Error('创建食谱失败')
+      }
+    }
+
+    // 离线模式（理论上不会执行到，保留兜底）
     const recipe: Recipe = {
       ...input,
-      id: 'r_' + Date.now(),
+      id: localId,
       orderCount: 0,
       createdAt: now,
       updatedAt: now,
     }
     recipes.value.unshift(recipe)
     save('family_recipes', recipes.value)
-    if (cloudMode.value) {
-      recipeApi.create(input).then(r => { recipe.id = r.id }).catch(() => {})
-    }
-    return recipe.id
+    return localId
   }
 
-  function updateRecipe(id: string, data: Partial<RecipeInput>): boolean {
+  async function updateRecipe(id: string, data: Partial<RecipeInput>): Promise<boolean> {
+    if (cloudMode.value) {
+      try {
+        await recipeApi.update(id, data)
+      } catch {
+        uni.showToast({ title: '更新食谱失败', icon: 'none' })
+        return false
+      }
+    }
     const i = recipes.value.findIndex(r => r.id === id)
     if (i === -1) return false
     recipes.value[i] = { ...recipes.value[i], ...data, id, updatedAt: new Date().toISOString() }
     save('family_recipes', recipes.value)
-    if (cloudMode.value) {
-      recipeApi.update(id, data).catch(() => {})
-    }
     return true
   }
 
-  function deleteRecipe(id: string) {
+  async function deleteRecipe(id: string) {
+    if (cloudMode.value) {
+      try {
+        await recipeApi.delete(id)
+      } catch {
+        uni.showToast({ title: '删除食谱失败', icon: 'none' })
+        return
+      }
+    }
     recipes.value = recipes.value.filter(r => r.id !== id)
     save('family_recipes', recipes.value)
-    if (cloudMode.value) {
-      recipeApi.delete(id).catch(() => {})
-    }
   }
 
   function getRecipeById(id: string): Recipe | undefined {

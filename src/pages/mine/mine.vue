@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useMealStore } from '@/store/meal'
 
 const store = useMealStore()
@@ -8,6 +8,13 @@ const store = useMealStore()
 // 每次进入刷新数据
 onShow(() => {
   store.syncFromCloud()
+})
+
+// 下拉刷新
+onPullDownRefresh(async () => {
+  await store.syncFromCloud()
+  uni.stopPullDownRefresh()
+  uni.showToast({ title: '已刷新', icon: 'success', duration: 800 })
 })
 
 // ===== 个人资料编辑 =====
