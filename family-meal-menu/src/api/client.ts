@@ -137,11 +137,21 @@ export function compressImage(filePath: string, quality = 70): Promise<string> {
 
 /**
  * 压缩后上传图片，一步完成。
+ *
+ * iOS 上 compressImage 返回的临时文件路径可能无法被 uploadFile 访问
+ * （iOS 沙箱限制），故跳过压缩直接上传原图。
+ *
  * @param filePath 原始图片路径
  * @param quality 压缩质量 0-100，默认 70
  * @returns 上传后的图片 URL
  */
 export async function uploadWithCompression(filePath: string, quality = 70): Promise<string> {
+  // #ifdef MP-WEIXIN
+  const sys = uni.getSystemInfoSync()
+  if (sys.platform === 'ios') {
+    return uploadImage(filePath)
+  }
+  // #endif
   const compressed = await compressImage(filePath, quality)
   return uploadImage(compressed)
 }
