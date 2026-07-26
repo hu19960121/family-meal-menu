@@ -34,7 +34,7 @@ export const useMealStore = defineStore('meal', () => {
   // ==================== 云端模式状态 ====================
   const cloudMode = ref(isOnline())
   const syncing = ref(false)
-  let _syncingCount = 0 // 调试用
+  let _syncingCount = 0 // 调试用，临时移除syncing ref避免卡住
 
   // ==================== 家庭信息 ====================
   const familyInfo = ref<FamilyInfo>(load('family_info', { name: '', createdAt: '' }))
@@ -105,7 +105,8 @@ export const useMealStore = defineStore('meal', () => {
     }
 
     debugStep.value = `step3a-准备设置syncing count=${++_syncingCount}`
-    syncing.value = true
+    // 临时不用 ref，避免微信小程序 Vue 响应式 bug
+    const _syncFlag = true
     debugStep.value = 'step3b-syncing已设'
     try {
       debugStep.value = 'step4-请求API中'
@@ -164,7 +165,7 @@ export const useMealStore = defineStore('meal', () => {
         resetFamily()
       }
     } finally {
-      syncing.value = false
+      // syncing.value = false; // 临时注释掉，ref 操作可能卡住
     }
   }
 
