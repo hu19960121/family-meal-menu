@@ -81,11 +81,18 @@ export const useMealStore = defineStore('meal', () => {
 
   // ==================== 云端同步 ====================
   async function syncFromCloud() {
-    if (!isOnline()) return
+    try {
+      if (!isOnline()) return
+    } catch { return }
+
     syncing.value = true
     try {
-      const config = getCloudConfig()!
+      let config
+      try { config = getCloudConfig()! } catch { return }
+
+      console.log('[sync] 开始同步 familyId:', config?.familyId)
       const fam = await familyApi.get(config.familyId)
+      console.log('[sync] 获取到成员数:', fam?.members?.length)
       familyInfo.value = { name: fam.name, createdAt: fam.createdAt }
       members.value = fam.members as FamilyMember[]
 
@@ -125,7 +132,6 @@ export const useMealStore = defineStore('meal', () => {
 
     } catch (e: any) {
       console.warn('云端同步失败，使用本地缓存:', e?.message)
-      // 如果服务器返回 404（家庭被删了），重置
       if (e?.message?.includes('404') || e?.message?.includes('家庭不存在')) {
         resetFamily()
       }

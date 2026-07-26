@@ -70,13 +70,15 @@ function request<T>(method: string, path: string, body?: any, requireFamily = tr
       Object.assign(header, extraHeaders)
     }
 
-    uni.request({
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const req = uni.request({
       url,
       method: method as any,
       header,
       data: body,
       timeout: 10000,
       success: (res) => {
+        if (timer) clearTimeout(timer)
         const data = res.data as any
         if (res.statusCode >= 400) {
           reject(new Error(data?.error || `请求失败 (${res.statusCode})`))
@@ -85,9 +87,15 @@ function request<T>(method: string, path: string, body?: any, requireFamily = tr
         }
       },
       fail: (err) => {
+        if (timer) clearTimeout(timer)
         reject(new Error(err?.errMsg || '网络请求失败'))
       },
     })
+    // 额外超时保护（微信小程序 timeout 可能不生效）
+    timer = setTimeout(() => {
+      if (req && 'abort' in req) (req as any).abort()
+      reject(new Error('请求超时'))
+    }, 15000)
   })
 }
 

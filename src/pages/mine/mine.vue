@@ -1,22 +1,28 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useMealStore } from '@/store/meal'
 
 const store = useMealStore()
 
-// 每次进入刷新数据
+// 30 秒轮询，自动保持最新
+let timer: ReturnType<typeof setInterval> | null = null
 onShow(() => {
   store.syncFromCloud()
+  if (!timer) timer = setInterval(() => store.syncFromCloud(), 30000)
+})
+onUnmounted(() => {
+  if (timer) { clearInterval(timer); timer = null }
 })
 
 // 下拉刷新
 onPullDownRefresh(async () => {
   try {
-    await store.syncFromCloud()
+    await Promise.race([
+      store.syncFromCloud(),
+      new Promise(resolve => setTimeout(resolve, 12000)),
+    ])
     uni.showToast({ title: '已刷新', icon: 'success', duration: 800 })
-  } catch {
-    uni.showToast({ title: '刷新失败', icon: 'none' })
   } finally {
     uni.stopPullDownRefresh()
   }
