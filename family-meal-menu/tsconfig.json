@@ -4,6 +4,7 @@
     "strict": true, "jsx": "preserve", "resolveJsonModule": true,
     "isolatedModules": true, "esModuleInterop": true,
     "lib": ["ESNext", "DOM"], "skipLibCheck": true, "noEmit": true,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".", "paths": { "@/*": ["./src/*"] },
     "types": ["@dcloudio/types"]
   },

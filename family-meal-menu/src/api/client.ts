@@ -8,6 +8,9 @@
 const STORAGE_KEY = 'cloud_config'
 const BACKUP_KEY = 'family_cloud_info'
 
+/** 默认服务端地址（本地开发用 localhost，部署时替换为实际地址） */
+export const DEFAULT_SERVER_URL = 'https://family-meal-menu.onrender.com'
+
 export interface CloudConfig {
   serverUrl: string
   familyId: string
@@ -48,7 +51,11 @@ export function clearCloudConfig(): void {
   try { uni.removeStorageSync(BACKUP_KEY) } catch { /* ignore */ }
 }
 
-export function isOnline(): boolean {
+/** @deprecated 请用 hasCloudConfig */
+export function isOnline(): boolean { return hasCloudConfig() }
+
+/** 是否已配置云端连接（与网络连通性无关） */
+export function hasCloudConfig(): boolean {
   return !!getCloudConfig()
 }
 
@@ -104,6 +111,41 @@ function post<T>(path: string, body?: any, requireFamily = true): Promise<T> { r
 function put<T>(path: string, body?: any): Promise<T> { return request<T>('PUT', path, body) }
 function del<T>(path: string, extraHeaders?: Record<string, string>): Promise<T> { return request<T>('DELETE', path, undefined, true, extraHeaders) }
 
+// ========== 图片压缩 ==========
+
+/**
+ * 压缩图片（兼容小程序 + H5）
+ * 小程序端调用 uni.compressImage；H5 端直接返回原文件
+ */
+export function compressImage(filePath: string, quality = 70): Promise<string> {
+  return new Promise((resolve) => {
+    // #ifdef MP-WEIXIN
+    uni.compressImage({
+      src: filePath,
+      quality,
+      success: (res) => resolve(res.tempFilePath),
+      fail: () => resolve(filePath),  // 压缩失败降级为原图
+    })
+    // #endif
+    // #ifndef MP-WEIXIN
+    resolve(filePath)
+    // #endif
+  })
+}
+
+// ========== 图片压缩 + 上传（一站式） ==========
+
+/**
+ * 压缩后上传图片，一步完成。
+ * @param filePath 原始图片路径
+ * @param quality 压缩质量 0-100，默认 70
+ * @returns 上传后的图片 URL
+ */
+export async function uploadWithCompression(filePath: string, quality = 70): Promise<string> {
+  const compressed = await compressImage(filePath, quality)
+  return uploadImage(compressed)
+}
+
 // ========== 图片上传（兼容 H5 + 小程序） ==========
 
 export function uploadImage(filePath: string): Promise<string> {
@@ -131,19 +173,41 @@ export function uploadImage(filePath: string): Promise<string> {
   })
 }
 
+// ========== 身份认证 API ==========
+
+export const authApi = {
+  /** 微信登录：用 code 换身份 */
+  wechatLogin: (code: string) =>
+    post<{
+      found: boolean; openid: string;
+      familyId?: string; familyName?: string;
+      memberId?: string; memberName?: string;
+      role?: string; avatar?: string;
+    }>('/api/auth/wechat-login', { code }, false),
+
+  /** 恢复密钥找回身份 */
+  recover: (recoveryKey: string) =>
+    post<{
+      found: boolean;
+      familyId?: string; familyName?: string;
+      memberId?: string; memberName?: string;
+      role?: string; avatar?: string;
+    }>('/api/auth/recover', { recoveryKey }, false),
+}
+
 // ========== 家庭 API（无需 familyId） ==========
 
 export const familyApi = {
   /** 创建家庭（无需 familyId） */
-  create: (name: string, creatorName: string) =>
-    post<{ familyId: string; memberId: string; name: string; familyName: string; inviteCode: string }>(
-      '/api/families', { name, creatorName }, false
+  create: (name: string, creatorName: string, openid?: string) =>
+    post<{ familyId: string; memberId: string; name: string; familyName: string; inviteCode: string; recoveryKey?: string }>(
+      '/api/families', { name, creatorName, openid }, false
     ),
 
   /** 加入家庭（无需 familyId） */
-  join: (inviteCode: string, name: string) =>
-    post<{ familyId: string; memberId: string; name: string; familyName: string; members?: any[] }>(
-      '/api/families/join', { inviteCode, name }, false
+  join: (inviteCode: string, name: string, openid?: string) =>
+    post<{ familyId: string; memberId: string; name: string; familyName: string; members?: any[]; recoveryKey?: string; recovered?: boolean }>(
+      '/api/families/join', { inviteCode, name, openid }, false
     ),
 
   /** 获取家庭信息 */

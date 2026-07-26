@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { load, save } from '@/utils/storage'
-import { isOnline, memberApi, familyApi } from '@/api/client'
+import { hasCloudConfig, memberApi, familyApi } from '@/api/client'
 import type { FamilyMember, MemberRole } from '@/api/types'
 
 // ==================== 类型 ====================
@@ -34,10 +34,10 @@ export const useFamilyStore = defineStore('family', () => {
   const isCreator = computed(() => currentUser.value?.role === 'creator')
   const isAdmin = computed(() => currentUser.value?.role === 'creator' || currentUser.value?.role === 'admin')
   const isInitialized = computed(() => {
-    if (isOnline()) return true
-    if (info.value.name) return true
+    // 有家庭名称 + 至少一个成员 = 已初始化
+    if (info.value.name && members.value.length > 0) return true
     const cached = load('family_info', { name: '', createdAt: '' } as FamilyInfo)
-    return !!cached.name
+    return !!(cached.name && members.value.length > 0)
   })
 
   // ==================== 成员操作 ====================
@@ -47,7 +47,7 @@ export const useFamilyStore = defineStore('family', () => {
     const avatar = AVATARS[Math.floor(Math.random() * AVATARS.length)]
 
     // 先尝试在服务端创建，获取服务端 ID
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       try {
         const result = await memberApi.create({ name, avatar, role })
         memberId = result.id
@@ -68,7 +68,7 @@ export const useFamilyStore = defineStore('family', () => {
     if (data.name) m.name = data.name
     if (data.avatar) m.avatar = data.avatar
     save('family_members', members.value)
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       memberApi.update(id, data).catch(() => {
         uni.showToast({ title: '同步失败', icon: 'none', duration: 1500 })
       })
@@ -82,7 +82,7 @@ export const useFamilyStore = defineStore('family', () => {
       currentUserId.value = members.value[0].id
       save('current_user', currentUserId.value)
     }
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       memberApi.remove(id).catch(() => {
         uni.showToast({ title: '同步失败', icon: 'none', duration: 1500 })
       })
@@ -94,7 +94,7 @@ export const useFamilyStore = defineStore('family', () => {
     if (!m) return
     m.role = role
     save('family_members', members.value)
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       memberApi.setRole(id, role).catch(() => {
         uni.showToast({ title: '同步失败', icon: 'none', duration: 1500 })
       })
@@ -109,7 +109,7 @@ export const useFamilyStore = defineStore('family', () => {
   // ==================== 邀请码 ====================
 
   async function generateInviteCode(): Promise<string> {
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       try {
         const r = await familyApi.generateInvite()
         inviteCode.value = r.inviteCode

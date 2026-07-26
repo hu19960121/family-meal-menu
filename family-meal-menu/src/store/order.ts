@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { load, save } from '@/utils/storage'
-import { isOnline, orderApi } from '@/api/client'
+import { hasCloudConfig, orderApi } from '@/api/client'
 import type { Order } from '@/api/types'
 
 const STORAGE_KEY = 'family_orders'
@@ -32,7 +32,7 @@ export const useOrderStore = defineStore('order', () => {
     }
     items.value.unshift(order)
     persist()
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       orderApi.place(orderItems, memberId || '', memberName || '').catch(() => {
         uni.showToast({ title: '同步失败', icon: 'none', duration: 1500 })
       })

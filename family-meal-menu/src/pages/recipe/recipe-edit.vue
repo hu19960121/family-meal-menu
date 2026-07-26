@@ -3,7 +3,7 @@ import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useMealStore, type RecipeInput } from '@/store/meal'
 import { RecipeCategoryLabels, RecipeCategoryIcons } from '@/api/types'
-import { uploadImage } from '@/api/client'
+import { uploadWithCompression } from '@/api/client'
 import type { RecipeCategory, Ingredient } from '@/api/types'
 
 const store = useMealStore()
@@ -36,9 +36,10 @@ async function chooseImage() {
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
     })
+    if (!res.tempFilePaths || res.tempFilePaths.length === 0) return
     uni.showLoading({ title: '上传中...' })
     try {
-      form.coverImage = await uploadImage(res.tempFilePaths[0])
+      form.coverImage = await uploadWithCompression(res.tempFilePaths[0], 70)
     } catch (e: any) {
       uni.showToast({ title: e.message || '上传失败', icon: 'none' })
     } finally {
@@ -55,9 +56,10 @@ async function chooseStepImg(idx: number) {
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
     })
+    if (!res.tempFilePaths || res.tempFilePaths.length === 0) return
     uni.showLoading({ title: '上传中...' })
     try {
-      steps[idx].image = await uploadImage(res.tempFilePaths[0])
+      steps[idx].image = await uploadWithCompression(res.tempFilePaths[0], 70)
     } catch (e: any) {
       uni.showToast({ title: e.message || '上传失败', icon: 'none' })
     } finally {

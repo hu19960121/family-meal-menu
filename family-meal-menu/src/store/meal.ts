@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { load, save } from '@/utils/storage'
 import {
-  isOnline, getCloudConfig, saveCloudConfig, clearCloudConfig,
-  familyApi, recipeApi, cartApi, orderApi,
+  hasCloudConfig, getCloudConfig, saveCloudConfig, clearCloudConfig,
+  familyApi, recipeApi, cartApi, orderApi, authApi, DEFAULT_SERVER_URL,
 } from '@/api/client'
 import type { Recipe, MemberRole } from '@/api/types'
 import { useCartStore } from './cart'
@@ -19,8 +20,73 @@ export const useMealStore = defineStore('meal', () => {
   const recipeStore = useRecipeStore()
 
   // ==================== 云端模式状态 ====================
-  const cloudMode = ref(isOnline())
+  const cloudMode = ref(hasCloudConfig())
   const syncing = ref(false)
+
+  // ==================== 身份固化（OpenID / 恢复密钥） ====================
+  const openid = ref<string>(load('user_openid', ''))
+  const recoveryKey = ref<string>(load('user_recovery_key', ''))
+
+  /** 初始化身份：尝试微信登录获取 OpenID */
+  async function initIdentity(): Promise<{
+    recovered: boolean
+    familyId?: string
+    memberId?: string
+    memberName?: string
+    role?: string
+  }> {
+    if (openid.value) return { recovered: false }
+
+    try {
+      const loginRes = await new Promise<{ code: string }>((resolve, reject) => {
+        uni.login({ success: resolve as any, fail: reject })
+      })
+      const result = await authApi.wechatLogin(loginRes.code)
+      if (result.openid) {
+        openid.value = result.openid
+        save('user_openid', result.openid)
+      }
+      if (result.found && result.familyId && result.memberId) {
+        return {
+          recovered: true,
+          familyId: result.familyId,
+          memberId: result.memberId,
+          memberName: result.memberName,
+          role: result.role,
+        }
+      }
+    } catch {
+      // 微信登录失败（如开发环境），静默忽略
+    }
+    return { recovered: false }
+  }
+
+  /** 尝试通过恢复密钥找回身份 */
+  async function recoverByIdentityKey(key: string): Promise<{
+    recovered: boolean
+    familyId?: string
+    memberId?: string
+    memberName?: string
+    role?: string
+  }> {
+    try {
+      const result = await authApi.recover(key)
+      if (result.found && result.familyId && result.memberId) {
+        recoveryKey.value = key.toUpperCase()
+        save('user_recovery_key', recoveryKey.value)
+        return {
+          recovered: true,
+          familyId: result.familyId,
+          memberId: result.memberId,
+          memberName: result.memberName,
+          role: result.role,
+        }
+      }
+    } catch {
+      // 恢复失败
+    }
+    return { recovered: false }
+  }
 
   // ==================== 重置/退出 ====================
   /** 清理所有数据，回到设置页（协调所有 domain store） */
@@ -37,7 +103,7 @@ export const useMealStore = defineStore('meal', () => {
   /** 从服务器同步所有数据（协调所有 domain store） */
   async function syncFromCloud() {
     try {
-      if (!isOnline()) return
+      if (!hasCloudConfig()) return
     } catch { return }
 
     await new Promise(r => setTimeout(r, 0))
@@ -106,9 +172,9 @@ export const useMealStore = defineStore('meal', () => {
   }
 
   async function createFamily(familyName: string, creatorName: string) {
-    const result = await familyApi.create(familyName, creatorName)
+    const result = await familyApi.create(familyName, creatorName, openid.value || undefined)
     saveCloudConfig({
-      serverUrl: getCloudConfig()?.serverUrl || 'https://family-meal-menu.onrender.com',
+      serverUrl: getCloudConfig()?.serverUrl || DEFAULT_SERVER_URL,
       familyId: result.familyId,
       familyName: result.familyName,
       memberName: result.name,
@@ -120,14 +186,18 @@ export const useMealStore = defineStore('meal', () => {
       members: [{ id: result.memberId, name: result.name, avatar: '👨', role: 'creator' }],
       currentUserId: result.memberId,
     })
-    return { inviteCode: result.inviteCode }
+    if (result.recoveryKey) {
+      recoveryKey.value = result.recoveryKey
+      save('user_recovery_key', result.recoveryKey)
+    }
+    return { inviteCode: result.inviteCode, recoveryKey: result.recoveryKey }
   }
 
   async function joinFamily(inviteCode: string, name: string): Promise<boolean> {
-    const result = await familyApi.join(inviteCode, name)
+    const result = await familyApi.join(inviteCode, name, openid.value || undefined)
 
     saveCloudConfig({
-      serverUrl: getCloudConfig()?.serverUrl || 'https://family-meal-menu.onrender.com',
+      serverUrl: getCloudConfig()?.serverUrl || DEFAULT_SERVER_URL,
       familyId: result.familyId,
       familyName: result.familyName,
       memberName: result.name,
@@ -142,6 +212,11 @@ export const useMealStore = defineStore('meal', () => {
         : [{ id: result.memberId, name: result.name, avatar: '👩', role: 'member' }],
       currentUserId: result.memberId,
     })
+
+    if (result.recoveryKey) {
+      recoveryKey.value = result.recoveryKey
+      save('user_recovery_key', result.recoveryKey)
+    }
 
     // 尝试从云端拉食谱等数据（静默失败）
     try {
@@ -274,6 +349,7 @@ export const useMealStore = defineStore('meal', () => {
 
   return {
     cloudMode, syncing, isInitialized,
+    openid, recoveryKey, initIdentity, recoverByIdentityKey,
     familyInfo, createFamily, joinFamily, dissolveFamily,
     members, currentUser, currentUserId,
     isCreator, isAdmin, canEditRecipes, canOrder, canManageMembers,

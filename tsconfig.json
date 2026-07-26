@@ -4,8 +4,9 @@
     "strict": true, "jsx": "preserve", "resolveJsonModule": true,
     "isolatedModules": true, "esModuleInterop": true,
     "lib": ["ESNext", "DOM"], "skipLibCheck": true, "noEmit": true,
-    "baseUrl": ".", "paths": { "@/*": ["./src/*"] },
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".", "paths": { "@/*": ["./family-meal-menu/src/*"] },
     "types": ["@dcloudio/types"]
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"]
+  "include": ["family-meal-menu/src/**/*.ts", "family-meal-menu/src/**/*.d.ts", "family-meal-menu/src/**/*.vue"]
 }

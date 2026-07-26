@@ -2,7 +2,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useMealStore } from '@/store/meal'
-import { uploadImage } from '@/api/client'
+import { uploadWithCompression } from '@/api/client'
 
 const store = useMealStore()
 
@@ -47,9 +47,10 @@ async function uploadAvatar(id: string) {
     const r = await uni.chooseImage({
       count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'],
     })
+    if (!r.tempFilePaths || r.tempFilePaths.length === 0) return
     uni.showLoading({ title: '上传中...' })
     try {
-      const url = await uploadImage(r.tempFilePaths[0])
+      const url = await uploadWithCompression(r.tempFilePaths[0], 60)
       store.updateMember(id, { avatar: url })
       uni.showToast({ title: '头像已更新', icon: 'success' })
     } catch (e: any) {

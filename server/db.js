@@ -18,21 +18,19 @@ async function connect() {
   await mongoose.connect(MONGO_URI)
   console.log(`  📦 MongoDB 已连接`)
 
-  // 清理旧数据
-  const [orphanMembers, orphanRecipes, orphanCart, orphanOrders, cleanCodes] = await Promise.all([
-    Member.deleteMany({ familyId: { $exists: false } }),
-    Recipe.deleteMany({ familyId: { $exists: false } }),
-    CartItem.deleteMany({ familyId: { $exists: false } }),
-    Order.deleteMany({ familyId: { $exists: false } }),
-    // 清除所有只有1人的家庭的邀请码（测试残留,防冲突）
-    Family.updateMany(
-      {},
-      { $set: { inviteCode: null, inviteExpiry: null } }
-    ),
-  ])
-  const total = orphanMembers.deletedCount + orphanRecipes.deletedCount + orphanCart.deletedCount + orphanOrders.deletedCount
-  if (total > 0) {
-    console.log(`  🧹 已清理 ${total} 条缺少 familyId 的旧数据`)
+  // 仅在开发环境启动时清理测试残留数据
+  // 生产环境跳过 —— 避免重启时误删数据
+  if (process.env.NODE_ENV === 'development') {
+    const [orphanMembers, orphanRecipes, orphanCart, orphanOrders] = await Promise.all([
+      Member.deleteMany({ familyId: { $exists: false } }),
+      Recipe.deleteMany({ familyId: { $exists: false } }),
+      CartItem.deleteMany({ familyId: { $exists: false } }),
+      Order.deleteMany({ familyId: { $exists: false } }),
+    ])
+    const total = orphanMembers.deletedCount + orphanRecipes.deletedCount + orphanCart.deletedCount + orphanOrders.deletedCount
+    if (total > 0) {
+      console.log(`  🧹 已清理 ${total} 条缺少 familyId 的开发残留数据`)
+    }
   }
 }
 
@@ -52,6 +50,8 @@ const memberSchema = new mongoose.Schema({
   name: String,
   avatar: String,
   role: { type: String, enum: ['creator', 'admin', 'member'], default: 'member' },
+  openid: { type: String, default: null, index: true },
+  recoveryKey: { type: String, default: null },
   createdAt: String,
 })
 

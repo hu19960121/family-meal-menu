@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { load, save } from '@/utils/storage'
-import { isOnline, recipeApi } from '@/api/client'
+import { hasCloudConfig, recipeApi } from '@/api/client'
 import type { Recipe, RecipeCategory, Ingredient, Nutrition, StepItem } from '@/api/types'
 
 // ==================== 类型 ====================
@@ -38,7 +38,7 @@ export const useRecipeStore = defineStore('recipe', () => {
   async function add(input: RecipeInput): Promise<string> {
     const now = new Date().toISOString()
 
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       try {
         const result = await recipeApi.create(input)
         const recipe: Recipe = {
@@ -72,7 +72,7 @@ export const useRecipeStore = defineStore('recipe', () => {
 
   /** 更新食谱 */
   async function update(id: string, data: Partial<RecipeInput>): Promise<boolean> {
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       try {
         await recipeApi.update(id, data)
       } catch {
@@ -89,7 +89,7 @@ export const useRecipeStore = defineStore('recipe', () => {
 
   /** 删除食谱 */
   async function remove(id: string): Promise<void> {
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       try {
         await recipeApi.delete(id)
       } catch {

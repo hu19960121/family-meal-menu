@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onLaunch } from '@dcloudio/uni-app'
 import { useMealStore } from '@/store/meal'
-import { isOnline } from '@/api/client'
+import { hasCloudConfig } from '@/api/client'
 
 onLaunch(async () => {
   const store = useMealStore()
 
-  if (isOnline()) {
+  if (hasCloudConfig()) {
     // 云端模式：同步数据，同步后如果已被删除会自动跳转设置页
     await store.syncFromCloud()
   }

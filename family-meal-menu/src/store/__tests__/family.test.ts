@@ -19,7 +19,8 @@ vi.mock('@/utils/storage', () => ({
 }))
 
 vi.mock('@/api/client', () => ({
-  isOnline: () => mockIsOnline(),
+  hasCloudConfig: () => mockIsOnline(),
+  isOnline: () => mockIsOnline(),  // 向后兼容
   memberApi: mockMemberApi,
   familyApi: {
     generateInvite: vi.fn(),

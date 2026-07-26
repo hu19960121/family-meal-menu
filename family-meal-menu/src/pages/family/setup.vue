@@ -1,24 +1,44 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useMealStore } from '@/store/meal'
-import { getCloudConfig, saveCloudConfig } from '@/api/client'
+import { getCloudConfig, saveCloudConfig, DEFAULT_SERVER_URL } from '@/api/client'
 
 const store = useMealStore()
 
 // 服务端地址（从之前保存的配置中恢复）
 const savedConfig = getCloudConfig()
-const serverUrl = ref(savedConfig?.serverUrl || 'https://family-meal-menu.onrender.com')
+const serverUrl = ref(savedConfig?.serverUrl || DEFAULT_SERVER_URL)
 
-// 唤醒服务器（Render 免费版 15 分钟无请求会休眠）
-onMounted(() => {
+// ===== 身份检查与恢复 =====
+const checkingIdentity = ref(true)
+
+onMounted(async () => {
   uni.request({ url: serverUrl.value + '/api/families', method: 'GET', timeout: 30000, fail: () => {} })
 
   if (store.isInitialized) {
     uni.switchTab({ url: '/pages/index/index' })
+    return
   }
+
+  // 尝试微信登录恢复身份
+  const identity = await store.initIdentity()
+  if (identity.recovered && identity.familyId && identity.memberId) {
+    saveCloudConfig({
+      serverUrl: serverUrl.value.replace(/\/+$/, ''),
+      familyId: identity.familyId,
+      familyName: identity.memberName || '',
+      memberName: identity.memberName || '',
+      memberId: identity.memberId,
+    })
+    store.cloudMode = true
+    uni.showToast({ title: `欢迎回来，${identity.memberName || ''}！`, icon: 'success' })
+    setTimeout(() => uni.switchTab({ url: '/pages/index/index' }), 1000)
+    return
+  }
+  checkingIdentity.value = false
 })
 
-const tab = ref<'create' | 'join'>('create')
+const tab = ref<'create' | 'join' | 'recover'>('create')
 
 // 创建家庭
 const familyName = ref('')
@@ -44,10 +64,14 @@ async function createFamily() {
   try {
     const result = await store.createFamily(fn, cn)
     uni.showToast({ title: '家庭创建成功！', icon: 'success' })
+    const rk = result.recoveryKey
     if (result.inviteCode) {
+      const msg = rk
+        ? `邀请码：${result.inviteCode}\n\n🔑 恢复密钥：${rk}\n\n（删除小程序后可用恢复密钥找回创建者身份，请截图保存！）`
+        : `邀请码：${result.inviteCode}\n（将此码发给家人加入）`
       uni.showModal({
-        title: '邀请码',
-        content: `邀请码：${result.inviteCode}\n（将此码发给家人加入）`,
+        title: rk ? '邀请码 & 恢复密钥' : '邀请码',
+        content: msg,
         showCancel: false,
         confirmText: '知道了',
         success: () => {
@@ -87,8 +111,22 @@ async function joinFamily() {
   try {
     const ok = await store.joinFamily(cd, nm)
     if (ok) {
-      uni.showToast({ title: `加入成功！`, icon: 'success' })
-      uni.switchTab({ url: '/pages/index/index' })
+      const rk = store.recoveryKey
+      if (rk) {
+        uni.showToast({ title: '加入成功！', icon: 'success' })
+        setTimeout(() => {
+          uni.showModal({
+            title: '🔑 恢复密钥',
+            content: `你的恢复密钥：${rk}\n\n删除小程序后，可用此密钥找回身份。\n请截图保存！`,
+            showCancel: false,
+            confirmText: '已保存',
+            success: () => uni.switchTab({ url: '/pages/index/index' }),
+          })
+        }, 600)
+      } else {
+        uni.showToast({ title: '加入成功！', icon: 'success' })
+        setTimeout(() => uni.switchTab({ url: '/pages/index/index' }), 800)
+      }
     } else {
       uni.showToast({ title: '邀请码无效，请联系创建者', icon: 'none' })
     }
@@ -96,6 +134,38 @@ async function joinFamily() {
     uni.showToast({ title: e.message || '加入失败', icon: 'none' })
   } finally {
     joining.value = false
+  }
+}
+
+// ===== 恢复身份 =====
+const recoverKeyInput = ref('')
+const recovering = ref(false)
+
+async function recoverIdentity() {
+  const key = recoverKeyInput.value.trim().toUpperCase()
+  if (!key) { uni.showToast({ title: '请输入恢复密钥', icon: 'none' }); return }
+
+  recovering.value = true
+  try {
+    const result = await store.recoverByIdentityKey(key)
+    if (result.recovered && result.familyId && result.memberId) {
+      saveCloudConfig({
+        serverUrl: serverUrl.value.replace(/\/+$/, ''),
+        familyId: result.familyId,
+        familyName: result.memberName || '',
+        memberName: result.memberName || '',
+        memberId: result.memberId,
+      })
+      store.cloudMode = true
+      uni.showToast({ title: `身份已恢复，${result.memberName || ''}！`, icon: 'success' })
+      setTimeout(() => uni.switchTab({ url: '/pages/index/index' }), 1000)
+    } else {
+      uni.showToast({ title: '恢复密钥无效', icon: 'none' })
+    }
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '恢复失败', icon: 'none' })
+  } finally {
+    recovering.value = false
   }
 }
 </script>
@@ -114,10 +184,16 @@ async function joinFamily() {
       <input v-model="serverUrl" class="s-input" placeholder="https://你的服务器地址.com" />
     </view>
 
-    <view class="card">
+    <!-- 身份检查中 -->
+    <view v-if="checkingIdentity" class="card" style="text-align:center;padding:60rpx 0;">
+      <text style="font-size:28rpx;color:#999;">🔍 检查身份中...</text>
+    </view>
+
+    <view class="card" v-else>
       <view class="tab-bar">
-        <text class="tab" :class="{ active: tab === 'create' }" @click="tab = 'create'">🏠 创建家庭</text>
-        <text class="tab" :class="{ active: tab === 'join' }" @click="tab = 'join'">📨 加入家庭</text>
+        <text class="tab" :class="{ active: tab === 'create' }" @click="tab = 'create'">🏠 创建</text>
+        <text class="tab" :class="{ active: tab === 'join' }" @click="tab = 'join'">📨 加入</text>
+        <text class="tab" :class="{ active: tab === 'recover' }" @click="tab = 'recover'">🔑 恢复</text>
       </view>
 
       <!-- 创建家庭 -->
@@ -148,6 +224,17 @@ async function joinFamily() {
         <view class="hint">向家庭创建者或管理员索要邀请码</view>
         <text class="btn btn-join" @click="joinFamily" v-if="!joining">📨 加入家庭</text>
         <text class="btn btn-join disabled" v-else>⏳ 加入中...</text>
+      </view>
+
+      <!-- 恢复身份 -->
+      <view v-if="tab === 'recover'" class="form">
+        <view class="field">
+          <text class="label">恢复密钥</text>
+          <input v-model="recoverKeyInput" class="inp invite-inp" placeholder="输入你保存的恢复密钥" maxlength="20" />
+        </view>
+        <view class="hint">删除小程序后，可用之前保存的恢复密钥找回身份</view>
+        <text class="btn btn-recover" @click="recoverIdentity" v-if="!recovering">🔍 找回身份</text>
+        <text class="btn btn-recover disabled" v-else>⏳ 恢复中...</text>
       </view>
     </view>
 
@@ -271,6 +358,7 @@ async function joinFamily() {
     border-radius: 16rpx;
   }
   .btn-join { background: linear-gradient(135deg, #5B9BD5, #3B7DC4); }
+  .btn-recover { background: linear-gradient(135deg, #6BBF6B, #4CAF50); }
   .disabled { opacity: 0.6; }
 }
 

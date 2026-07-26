@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { load, save } from '@/utils/storage'
-import { isOnline, cartApi } from '@/api/client'
+import { hasCloudConfig, cartApi } from '@/api/client'
 import type { CartItem, Recipe } from '@/api/types'
 
 const STORAGE_KEY = 'family_cart'
@@ -24,7 +24,7 @@ export const useCartStore = defineStore('cart', () => {
     if (exist) {
       exist.quantity = (exist.quantity || 1) + 1
       persist()
-      if (isOnline()) {
+      if (hasCloudConfig()) {
         cartApi.add(recipe.id, recipe.name, recipe.category, exist.cookName, exist.quantity).catch(() => {
           uni.showToast({ title: '同步失败', icon: 'none', duration: 1500 })
         })
@@ -44,7 +44,7 @@ export const useCartStore = defineStore('cart', () => {
     persist()
 
     // 异步获取服务端 ID，不阻塞 UI
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       cartApi.add(recipe.id, recipe.name, recipe.category, cookName || '未知')
         .then((result: any) => {
           if (result?.id) newItem.id = result.id
@@ -62,7 +62,7 @@ export const useCartStore = defineStore('cart', () => {
     const removed = items.value.splice(idx, 1)[0]
     persist()
     // 同步删除到服务器
-    if (isOnline() && removed?.id != null) {
+    if (hasCloudConfig() && removed?.id != null) {
       cartApi.remove(removed.id).catch(() => {
         uni.showToast({ title: '同步失败', icon: 'none', duration: 1500 })
       })
@@ -81,7 +81,7 @@ export const useCartStore = defineStore('cart', () => {
     // 数量归零 → 移除
     items.value = items.value.filter(c => c.recipeId !== recipeId)
     persist()
-    if (isOnline() && exist.id != null) {
+    if (hasCloudConfig() && exist.id != null) {
       cartApi.remove(exist.id).catch(() => {
         uni.showToast({ title: '同步失败', icon: 'none', duration: 1500 })
       })
@@ -109,7 +109,7 @@ export const useCartStore = defineStore('cart', () => {
       })
     }
     persist()
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       cartApi.generate().catch(() => {
         uni.showToast({ title: '同步失败', icon: 'none', duration: 1500 })
       })
@@ -120,7 +120,7 @@ export const useCartStore = defineStore('cart', () => {
   function clear(): void {
     items.value = []
     persist()
-    if (isOnline()) {
+    if (hasCloudConfig()) {
       cartApi.clear().catch(() => {
         uni.showToast({ title: '同步失败', icon: 'none', duration: 1500 })
       })
