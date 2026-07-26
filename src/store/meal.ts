@@ -28,13 +28,9 @@ export interface RecipeInput {
 export const useMealStore = defineStore('meal', () => {
   const AVATARS = ['👨', '👩', '👶', '👴', '👵', '🧑', '👦', '👧', '🐶', '🐱', '🦊', '🐼']
 
-  // 调试状态
-  const debugStep = ref('')
-
   // ==================== 云端模式状态 ====================
   const cloudMode = ref(isOnline())
   const syncing = ref(false)
-  let _syncingCount = 0 // 调试用，临时移除syncing ref避免卡住
 
   // ==================== 家庭信息 ====================
   const familyInfo = ref<FamilyInfo>(load('family_info', { name: '', createdAt: '' }))
@@ -85,43 +81,18 @@ export const useMealStore = defineStore('meal', () => {
 
   // ==================== 云端同步 ====================
   async function syncFromCloud() {
-    debugStep.value = 'step1-开始'
     try {
-      if (!isOnline()) {
-        debugStep.value = 'step1b-offline'
-        return
-      }
+      if (!isOnline()) return
     } catch { return }
 
-    debugStep.value = 'step2-通过online检查'
-    // 先读配置
-    let config
-    try {
-      config = getCloudConfig()!
-      debugStep.value = `step3-配置=${config?.familyId}`
-    } catch (e: any) {
-      debugStep.value = `step3b-失败 ${String(e).slice(0,40)}`
-      return
-    }
+    // 使用 setTimeout 避免微信小程序中直接操作 ref 导致卡死
+    await new Promise(r => setTimeout(r, 0))
+    syncing.value = true
 
-    debugStep.value = `step3a-准备设置syncing count=${++_syncingCount}`
-    // 临时不用 ref，避免微信小程序 Vue 响应式 bug
-    const _syncFlag = true
-    debugStep.value = 'step3b-syncing已设'
     try {
-      debugStep.value = 'step4-请求API中'
+      const config = getCloudConfig()!
       const fam = await familyApi.get(config.familyId)
-      debugStep.value = `step5-API完成 ${fam?.members?.length}人`
 
-      // 保存调试信息
-      try {
-        uni.setStorageSync('debug_sync_info', {
-          cfgFamilyId: config?.familyId,
-          apiFamilyId: fam?.id,
-          memberCount: fam?.members?.length,
-          members: fam?.members?.map((m: any) => m.name || m.id),
-        })
-      } catch {}
       familyInfo.value = { name: fam.name, createdAt: fam.createdAt }
       members.value = fam.members as FamilyMember[]
 
@@ -165,7 +136,8 @@ export const useMealStore = defineStore('meal', () => {
         resetFamily()
       }
     } finally {
-      // syncing.value = false; // 临时注释掉，ref 操作可能卡住
+      await new Promise(r => setTimeout(r, 0))
+      syncing.value = false
     }
   }
 
@@ -532,7 +504,7 @@ export const useMealStore = defineStore('meal', () => {
     recipes, addRecipe, updateRecipe, deleteRecipe, getRecipeById,
     cart, cartCount, addToCart, removeFromCart, getCartQuantity, generateCart, clearCart,
     orders, placeOrder,
-    syncFromCloud, debugStep,
+    syncFromCloud,
     AVATARS,
   }
 })

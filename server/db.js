@@ -18,12 +18,17 @@ async function connect() {
   await mongoose.connect(MONGO_URI)
   console.log(`  📦 MongoDB 已连接`)
 
-  // 清理旧数据：删除缺少 familyId 的孤立文档（1.0 迁移 bug 修复）
-  const [orphanMembers, orphanRecipes, orphanCart, orphanOrders] = await Promise.all([
+  // 清理旧数据
+  const [orphanMembers, orphanRecipes, orphanCart, orphanOrders, cleanCodes] = await Promise.all([
     Member.deleteMany({ familyId: { $exists: false } }),
     Recipe.deleteMany({ familyId: { $exists: false } }),
     CartItem.deleteMany({ familyId: { $exists: false } }),
     Order.deleteMany({ familyId: { $exists: false } }),
+    // 清除所有只有1人的家庭的邀请码（测试残留,防冲突）
+    Family.updateMany(
+      {},
+      { $set: { inviteCode: null, inviteExpiry: null } }
+    ),
   ])
   const total = orphanMembers.deletedCount + orphanRecipes.deletedCount + orphanCart.deletedCount + orphanOrders.deletedCount
   if (total > 0) {
