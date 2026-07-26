@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node index.js)",
+      "Bash(curl -s http://localhost:3001/api/families -X POST -H \"Content-Type: application/json\" -d '{\"name\":\"测试家庭\",\"creatorName\":\"爸爸\"}')",
+      "Bash(node -e ' *)",
+      "Bash(npx http-server *)",
+      "Bash(curl -s http://localhost:3001 -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s http://localhost:3000 -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s http://localhost:3001/api/families -X POST -H \"Content-Type: application/json\" -d '{\"name\":\"测试\",\"creatorName\":\"测试\"}')"
+    ]
+  }
+}

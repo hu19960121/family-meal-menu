@@ -1,0 +1,38 @@
+{
+  "pages": [
+    "pages/family/setup",
+    "pages/index/index",
+    "pages/cart/cart",
+    "pages/recipe/recipe-list",
+    "pages/recipe/recipe-detail",
+    "pages/recipe/recipe-edit",
+    "pages/mine/mine"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "家庭餐单",
+    "navigationBarBackgroundColor": "#FFF9F0",
+    "backgroundColor": "#FFF9F0"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#E8784A",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "🍽️ 点餐"
+      },
+      {
+        "pagePath": "pages/recipe/recipe-list",
+        "text": "📖 食谱"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "👤 我的"
+      }
+    ]
+  },
+  "usingComponents": {}
+}

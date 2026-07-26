@@ -1,0 +1,2 @@
+page{--color-primary: #E8784A;--color-primary-light: #F5A07A;--color-bg: #FFF9F0;--color-bg-card: #FFFFFF;--color-text: #333;--color-text-secondary: #888;--color-border: #F0E8DE;--color-success: #6BBF6B;--color-danger: #E05555;font-family:PingFang SC,Microsoft YaHei,sans-serif;font-size:28rpx;color:var(--color-text);background:var(--color-bg)}
+page{--status-bar-height:25px;--top-window-height:0px;--window-top:0px;--window-bottom:0px;--window-left:0px;--window-right:0px;--window-magin:0px}[data-c-h="true"]{display: none !important;}
