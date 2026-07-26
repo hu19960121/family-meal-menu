@@ -17,6 +17,18 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/family-mea
 async function connect() {
   await mongoose.connect(MONGO_URI)
   console.log(`  📦 MongoDB 已连接`)
+
+  // 清理旧数据：删除缺少 familyId 的孤立文档（1.0 迁移 bug 修复）
+  const [orphanMembers, orphanRecipes, orphanCart, orphanOrders] = await Promise.all([
+    Member.deleteMany({ familyId: { $exists: false } }),
+    Recipe.deleteMany({ familyId: { $exists: false } }),
+    CartItem.deleteMany({ familyId: { $exists: false } }),
+    Order.deleteMany({ familyId: { $exists: false } }),
+  ])
+  const total = orphanMembers.deletedCount + orphanRecipes.deletedCount + orphanCart.deletedCount + orphanOrders.deletedCount
+  if (total > 0) {
+    console.log(`  🧹 已清理 ${total} 条缺少 familyId 的旧数据`)
+  }
 }
 
 // ====== Schema 定义 ======
@@ -149,7 +161,7 @@ const db = {
     },
 
     add: async (familyId, member) => {
-      const doc = await Member.create({ ...member, _id: String(member.id || member._id) })
+      const doc = await Member.create({ ...member, _id: String(member.id || member._id), familyId: String(familyId) })
       return toPlain(doc)
     },
 
@@ -182,7 +194,7 @@ const db = {
     },
 
     add: async (familyId, recipe) => {
-      const doc = await Recipe.create({ ...recipe, _id: String(recipe.id || recipe._id) })
+      const doc = await Recipe.create({ ...recipe, _id: String(recipe.id || recipe._id), familyId: String(familyId) })
       return toPlain(doc)
     },
 
@@ -213,7 +225,7 @@ const db = {
     },
 
     add: async (familyId, item) => {
-      const doc = await CartItem.create({ ...item, _id: String(item.id || item._id) })
+      const doc = await CartItem.create({ ...item, _id: String(item.id || item._id), familyId: String(familyId) })
       return toPlain(doc)
     },
 
@@ -237,7 +249,7 @@ const db = {
     },
 
     add: async (familyId, order) => {
-      const doc = await Order.create({ ...order, _id: String(order.id || order._id) })
+      const doc = await Order.create({ ...order, _id: String(order.id || order._id), familyId: String(familyId) })
       return toPlain(doc)
     },
   },

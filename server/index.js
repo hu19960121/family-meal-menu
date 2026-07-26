@@ -36,7 +36,7 @@ app.post('/api/families', asyncHandler(async (req, res) => {
   const memberId = 'm_' + Date.now()
   const now = new Date().toISOString()
   const inviteCode = Math.random().toString(36).slice(2, 8).toUpperCase()
-  const inviteExpiry = Date.now() + 30 * 60 * 1000
+  const inviteExpiry = Date.now() + 7 * 24 * 60 * 60 * 1000
 
   const family = { id: familyId, name, inviteCode, inviteExpiry, createdAt: now }
   const creator = { id: memberId, name: creatorName, avatar: '👨', role: 'creator', createdAt: now }
@@ -82,7 +82,7 @@ app.post('/api/families/join', asyncHandler(async (req, res) => {
 // 生成新邀请码
 app.post('/api/families/:familyId/invite', requireFamily, asyncHandler(async (req, res) => {
   const code = Math.random().toString(36).slice(2, 8).toUpperCase()
-  const expiry = Date.now() + 30 * 60 * 1000
+  const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000
 
   req.family.inviteCode = code
   req.family.inviteExpiry = expiry
