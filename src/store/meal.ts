@@ -93,9 +93,14 @@ export const useMealStore = defineStore('meal', () => {
       console.log('[sync] 开始同步 familyId:', config?.familyId)
       const fam = await familyApi.get(config.familyId)
       console.log('[sync] 获取到成员数:', fam?.members?.length)
-      // 调试：用 toast 显示服务器返回的成员数
+      // 调试：显示服务器地址和成员数，排查两台手机是否连的不同服务器
       if (fam?.members?.length !== undefined) {
-        uni.showToast({ title: `同步完成: ${fam.members.length}位成员`, icon: 'none', duration: 1500 })
+        const shortUrl = (config?.serverUrl || '').replace(/^https?:\/\//, '').slice(0, 20)
+        uni.showToast({
+          title: `[${shortUrl}] ${fam.members.length}位成员`,
+          icon: 'none',
+          duration: 2000,
+        })
       }
       familyInfo.value = { name: fam.name, createdAt: fam.createdAt }
       members.value = fam.members as FamilyMember[]
