@@ -369,6 +369,11 @@ app.post('/api/families/:familyId/orders', requireFamily, asyncHandler(async (re
 
 // ==================== 管理 API ====================
 
+// 健康检查 + 版本确认
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', version: '1.0.1', time: new Date().toISOString() })
+})
+
 // 清空全部数据（需要 resetToken）
 app.post('/api/admin/reset', asyncHandler(async (req, res) => {
   const { resetToken } = req.body
