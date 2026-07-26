@@ -1,0 +1,15 @@
+const express = require('express')
+const path = require('path')
+const app = express()
+app.use(express.static(path.join(__dirname, 'dist/build/h5')))
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist/build/h5/index.html'))
+})
+app.listen(3000, '0.0.0.0', () => {
+  console.log('')
+  console.log('  🍽️  家庭餐单 H5')
+  console.log('  ─────────────────────')
+  console.log('  本地:    http://localhost:3000')
+  console.log('  局域网:  http://192.168.10.7:3000')
+  console.log('')
+})
