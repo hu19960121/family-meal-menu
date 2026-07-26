@@ -107,7 +107,7 @@ export const familyApi = {
 
   /** 加入家庭（无需 familyId） */
   join: (inviteCode: string, name: string) =>
-    post<{ familyId: string; memberId: string; name: string; familyName: string }>(
+    post<{ familyId: string; memberId: string; name: string; familyName: string; members?: any[] }>(
       '/api/families/join', { inviteCode, name }, false
     ),
 

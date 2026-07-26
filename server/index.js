@@ -67,12 +67,16 @@ app.post('/api/families/join', asyncHandler(async (req, res) => {
   const member = { id: memberId, name, avatar, role: 'member', createdAt: now }
   await db.members.add(family.id, member)
 
-  // 邀请码一次性使用
-  family.inviteCode = null
-  family.inviteExpiry = null
-  await db.families.save(family)
+  // 返回完整成员列表，前端无需再次同步
+  const members = await db.members.getAll(family.id)
 
-  res.json({ familyId: family.id, memberId, name, familyName: family.name })
+  res.json({
+    familyId: family.id,
+    memberId,
+    name,
+    familyName: family.name,
+    members,
+  })
 }))
 
 // 生成新邀请码

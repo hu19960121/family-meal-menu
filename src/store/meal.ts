@@ -190,7 +190,7 @@ export const useMealStore = defineStore('meal', () => {
 
   async function joinFamily(inviteCode: string, name: string): Promise<boolean> {
     // 第一步：调用加入 API（与 sync 分开捕获错误）
-    let result: { familyId: string; memberId: string; name: string; familyName: string } | null = null
+    let result: { familyId: string; memberId: string; name: string; familyName: string; members?: FamilyMember[] } | null = null
     try {
       result = await familyApi.join(inviteCode, name)
     } catch {
@@ -204,7 +204,7 @@ export const useMealStore = defineStore('meal', () => {
       return true
     }
 
-    // 第二步：保存配置 + 同步（即使同步失败也算加入成功）
+    // 第二步：保存配置
     saveCloudConfig({
       serverUrl: getCloudConfig()?.serverUrl || 'https://family-meal-menu.onrender.com',
       familyId: result.familyId,
@@ -214,15 +214,22 @@ export const useMealStore = defineStore('meal', () => {
     })
     cloudMode.value = true
 
-    // 先写入本地缓存，确保即使离线也能用
+    // 写入本地缓存
     familyInfo.value = { name: result.familyName, createdAt: new Date().toISOString() }
-    members.value = [{ id: result.memberId, name: result.name, avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)], role: 'member' }]
     currentUserId.value = result.memberId
     save('family_info', familyInfo.value)
-    save('family_members', members.value)
     save('current_user', currentUserId.value)
 
-    // 尝试从云端拉全量数据（静默失败，用本地缓存）
+    // 如果服务器返回了成员列表，直接使用（不同步请求）
+    if (result.members && result.members.length > 0) {
+      members.value = result.members as FamilyMember[]
+    } else {
+      // 兜底：只添加当前成员
+      members.value = [{ id: result.memberId, name: result.name, avatar: AVATARS[Math.floor(Math.random() * AVATARS.length)], role: 'member' }]
+    }
+    save('family_members', members.value)
+
+    // 尝试从云端拉食谱等数据（静默失败）
     try {
       await syncFromCloud()
     } catch { /* 静默 */ }
