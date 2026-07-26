@@ -81,7 +81,7 @@ export const useMealStore = defineStore('meal', () => {
 
   // ==================== 云端同步 ====================
   async function syncFromCloud() {
-    if (!isOnline() || syncing.value) return
+    if (!isOnline()) return
     syncing.value = true
     try {
       const config = getCloudConfig()!

@@ -14,9 +14,14 @@ onShow(() => {
 
 // 下拉刷新
 onPullDownRefresh(async () => {
-  await store.syncFromCloud()
-  uni.stopPullDownRefresh()
-  uni.showToast({ title: '已刷新', icon: 'success', duration: 800 })
+  try {
+    await store.syncFromCloud()
+    uni.showToast({ title: '已刷新', icon: 'success', duration: 800 })
+  } catch {
+    uni.showToast({ title: '刷新失败', icon: 'none' })
+  } finally {
+    uni.stopPullDownRefresh()
+  }
 })
 
 const activeCategory = ref<RecipeCategory | 'all'>('all')
