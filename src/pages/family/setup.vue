@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useMealStore } from '@/store/meal'
-import { getCloudConfig, saveCloudConfig, clearCloudConfig } from '@/api/client'
+import { getCloudConfig, saveCloudConfig } from '@/api/client'
 
 const store = useMealStore()
 
@@ -96,15 +96,6 @@ async function joinFamily() {
     joining.value = false
   }
 }
-
-// 离线模式
-function offlineMode() {
-  clearCloudConfig()
-  const cfg = getCloudConfig()
-  store.createFamily('本地家庭', '我')
-  uni.showToast({ title: '进入离线模式', icon: 'success' })
-  uni.switchTab({ url: '/pages/index/index' })
-}
 </script>
 
 <template>
@@ -158,7 +149,6 @@ function offlineMode() {
       </view>
     </view>
 
-    <text class="offline-link" @click="offlineMode">💡 先跳过，使用离线模式（数据仅存本机）</text>
   </view>
 </template>
 

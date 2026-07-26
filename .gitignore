@@ -1,6 +1,7 @@
 node_modules/
 dist/
 server/data/
+server/uploads/
 server/node_modules/
 *.log
 .DS_Store

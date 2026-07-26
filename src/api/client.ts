@@ -96,6 +96,33 @@ function post<T>(path: string, body?: any, requireFamily = true): Promise<T> { r
 function put<T>(path: string, body?: any): Promise<T> { return request<T>('PUT', path, body) }
 function del<T>(path: string, extraHeaders?: Record<string, string>): Promise<T> { return request<T>('DELETE', path, undefined, true, extraHeaders) }
 
+// ========== 图片上传（兼容 H5 + 小程序） ==========
+
+export function uploadImage(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const config = getCloudConfig()
+    if (!config) { reject(new Error('未连接服务器')); return }
+
+    const url = `${config.serverUrl.replace(/\/+$/, '')}/api/upload`
+
+    uni.uploadFile({
+      url,
+      filePath,
+      name: 'file',
+      success: (res) => {
+        try {
+          const data = JSON.parse(res.data as string)
+          if (res.statusCode >= 400) reject(new Error(data.error || '上传失败'))
+          else resolve(config.serverUrl.replace(/\/+$/, '') + data.url)
+        } catch {
+          reject(new Error('上传返回格式错误'))
+        }
+      },
+      fail: (err) => reject(new Error(err.errMsg || '网络请求失败')),
+    })
+  })
+}
+
 // ========== 家庭 API（无需 familyId） ==========
 
 export const familyApi = {

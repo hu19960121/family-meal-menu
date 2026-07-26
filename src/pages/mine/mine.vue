@@ -33,7 +33,6 @@ function isImageUrl(s: string) { return s && (s.startsWith('http') || s.startsWi
 
 // ===== 成员管理 =====
 const showInvite = ref(false)
-const inviteInput = ref('')
 
 async function doInvite() {
   await store.generateInviteCode()
@@ -45,19 +44,6 @@ function copyInviteCode() {
     data: store.inviteCode,
     success: () => uni.showToast({ title: '已复制', icon: 'success' }),
   })
-}
-
-function useInvite() {
-  const code = inviteInput.value.trim()
-  if (!code) { uni.showToast({ title: '请输入邀请码', icon: 'none' }); return }
-  const name = store.currentUser?.name || '新成员'
-  const member = store.useInviteCode(code, name)
-  if (member) {
-    uni.showToast({ title: '加入成功！', icon: 'success' })
-    inviteInput.value = ''
-  } else {
-    uni.showToast({ title: '邀请码无效或已过期', icon: 'none' })
-  }
 }
 
 function delMember(id: string, name: string) {
@@ -222,17 +208,6 @@ function fmt(iso: string) {
           <text class="ab as" @click="confirmEdit">✓</text>
           <text class="ab" @click="editId = ''">✕</text>
         </view>
-      </view>
-    </view>
-
-    <!-- ===== 加入家庭（普通成员） ===== -->
-    <view class="sec" v-if="!store.isAdmin">
-      <view class="sh">
-        <text class="title">📨 加入家庭</text>
-      </view>
-      <view class="add-form">
-        <input v-model="inviteInput" class="inp" placeholder="输入管理员分享的邀请码" />
-        <text class="btn" @click="useInvite">加入</text>
       </view>
     </view>
 

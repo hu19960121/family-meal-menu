@@ -1,5 +1,8 @@
 const express = require('express')
 const cors = require('cors')
+const path = require('path')
+const fs = require('fs')
+const multer = require('multer')
 const { v4: uuidv4 } = require('uuid')
 const { db, connect } = require('./db')
 
@@ -8,6 +11,39 @@ const PORT = process.env.PORT || 3001
 
 app.use(cors())
 app.use(express.json({ limit: '5mb' }))
+
+// ====== 图片上传配置 ======
+const UPLOAD_DIR = path.join(__dirname, 'uploads')
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg'
+    cb(null, Date.now() + '_' + uuidv4().slice(0, 6) + ext)
+  },
+})
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(path.extname(file.originalname).toLowerCase())
+    cb(ok ? null : new Error('仅支持 jpg/png/gif/webp 格式'), ok)
+  },
+})
+
+// 静态文件服务
+app.use('/uploads', express.static(UPLOAD_DIR))
+
+// 单图上传
+app.post('/api/upload', (req, res) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message || '上传失败' })
+    if (!req.file) return res.status(400).json({ error: '未选择文件' })
+    const url = `/uploads/${req.file.filename}`
+    res.json({ url })
+  })
+})
 
 // 异步路由错误处理
 function asyncHandler(fn) {

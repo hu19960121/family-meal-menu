@@ -156,52 +156,26 @@ export const useMealStore = defineStore('meal', () => {
   }
 
   async function createFamily(familyName: string, creatorName: string) {
-    try {
-      const result = await familyApi.create(familyName, creatorName)
-      saveCloudConfig({
-        serverUrl: getCloudConfig()?.serverUrl || 'https://family-meal-menu.onrender.com',
-        familyId: result.familyId,
-        familyName: result.familyName,
-        memberName: result.name,
-        memberId: result.memberId,
-      })
-      cloudMode.value = true
-      familyInfo.value = { name: result.familyName, createdAt: new Date().toISOString() }
-      members.value = [{ id: result.memberId, name: result.name, avatar: '👨', role: 'creator' }]
-      currentUserId.value = result.memberId
-      save('family_info', familyInfo.value)
-      save('family_members', members.value)
-      save('current_user', currentUserId.value)
-      return { inviteCode: result.inviteCode }
-    } catch {
-      // 离线模式
-      const now = new Date().toISOString()
-      const member: FamilyMember = { id: 'm_' + Date.now(), name: creatorName, avatar: AVATARS[0], role: 'creator' }
-      familyInfo.value = { name: familyName, createdAt: now }
-      members.value = [member]
-      currentUserId.value = member.id
-      save('family_info', familyInfo.value)
-      save('family_members', members.value)
-      save('current_user', currentUserId.value)
-      return { inviteCode: Math.random().toString(36).slice(2, 8).toUpperCase() }
-    }
+    const result = await familyApi.create(familyName, creatorName)
+    saveCloudConfig({
+      serverUrl: getCloudConfig()?.serverUrl || 'https://family-meal-menu.onrender.com',
+      familyId: result.familyId,
+      familyName: result.familyName,
+      memberName: result.name,
+      memberId: result.memberId,
+    })
+    cloudMode.value = true
+    familyInfo.value = { name: result.familyName, createdAt: new Date().toISOString() }
+    members.value = [{ id: result.memberId, name: result.name, avatar: '👨', role: 'creator' }]
+    currentUserId.value = result.memberId
+    save('family_info', familyInfo.value)
+    save('family_members', members.value)
+    save('current_user', currentUserId.value)
+    return { inviteCode: result.inviteCode }
   }
 
   async function joinFamily(inviteCode: string, name: string): Promise<boolean> {
-    // 第一步：调用加入 API（与 sync 分开捕获错误）
-    let result: { familyId: string; memberId: string; name: string; familyName: string; members?: FamilyMember[] } | null = null
-    try {
-      result = await familyApi.join(inviteCode, name)
-    } catch {
-      // 离线模式兜底
-      const localCode = load('invite_code', '')
-      if (!localCode || localCode !== inviteCode.toUpperCase()) return false
-      const member = addMemberLocal(name)
-      currentUserId.value = member.id
-      save('current_user', currentUserId.value)
-      save('invite_code', '')
-      return true
-    }
+    const result = await familyApi.join(inviteCode, name)
 
     // 第二步：保存配置
     saveCloudConfig({
@@ -330,20 +304,6 @@ export const useMealStore = defineStore('meal', () => {
 
   const inviteCode = ref<string>(load('invite_code', ''))
   const inviteExpiry = ref<number>(load('invite_expiry', 0))
-
-  function useInviteCode(code: string, name: string): FamilyMember | null {
-    if (!inviteCode.value || inviteCode.value !== code.toUpperCase()) return null
-    if (Date.now() > inviteExpiry.value) {
-      uni.showToast({ title: '邀请码已过期', icon: 'none' })
-      return null
-    }
-    const member = addMemberLocal(name)
-    inviteCode.value = ''
-    inviteExpiry.value = 0
-    save('invite_code', '')
-    save('invite_expiry', 0)
-    return member
-  }
 
   // ==================== 食谱 ====================
 
@@ -503,7 +463,7 @@ export const useMealStore = defineStore('meal', () => {
     isCreator, isAdmin, canEditRecipes, canOrder, canManageMembers,
     switchUser, addMember, updateMember, deleteMember, setMemberRole,
     leaveFamily, resetFamily,
-    inviteCode, inviteExpiry, generateInviteCode, useInviteCode, clearInviteCode,
+    inviteCode, generateInviteCode, clearInviteCode,
     recipes, addRecipe, updateRecipe, deleteRecipe, getRecipeById,
     cart, cartCount, addToCart, removeFromCart, getCartQuantity, generateCart, clearCart,
     orders, placeOrder,
