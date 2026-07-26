@@ -7,6 +7,7 @@ const store = useMealStore()
 
 // 调试信息
 const debugShow = ref(false)
+const debugStep = ref('')
 const debugInfo = ref({
   cfgFamilyId: '',
   apiFamilyId: '',
@@ -19,6 +20,7 @@ onShow(() => {
   store.syncFromCloud()
   // 每次进入时读取调试信息
   try {
+    debugStep.value = uni.getStorageSync('debug_step') || ''
     const d = uni.getStorageSync('debug_sync_info')
     if (d) debugInfo.value = d
   } catch {}
@@ -300,6 +302,7 @@ function fmt(iso: string) {
     <view class="sec debug-box" @click="debugShow = !debugShow">
       <text class="title">🛠 调试 {{ debugShow ? '▼' : '▶' }}</text>
       <view v-if="debugShow">
+        <text class="dbg-line">步骤: {{ debugStep }}</text>
         <text class="dbg-line">配置ID: {{ debugInfo.cfgFamilyId }}</text>
         <text class="dbg-line">API-ID: {{ debugInfo.apiFamilyId }}</text>
         <text class="dbg-line">成员数: {{ debugInfo.memberCount }}</text>

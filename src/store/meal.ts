@@ -81,29 +81,39 @@ export const useMealStore = defineStore('meal', () => {
 
   // ==================== 云端同步 ====================
   async function syncFromCloud() {
-    try {
-      // 最开头就保存时间戳，看函数有没有被调用
-      uni.setStorageSync('debug_sync_start', Date.now())
-      uni.setStorageSync('debug_sync_info', { cfgFamilyId: '???', apiFamilyId: '???', memberCount: -1, members: ['函数已触发'] })
-    } catch {}
+    // 每步都 save 并 console.log
+    console.log('[sync] STEP1 函数开始')
+    try { uni.setStorageSync('debug_step', 'step1-开始') } catch {}
 
     try {
       if (!isOnline()) {
-        uni.setStorageSync('debug_sync_info', { cfgFamilyId: 'offline', apiFamilyId: '-', memberCount: -1, members: ['isOnline=false'] })
+        console.log('[sync] STEP1b isOnline=false，跳过同步')
+        try { uni.setStorageSync('debug_step', 'step1b-offline') } catch {}
         return
       }
     } catch { return }
 
+    console.log('[sync] STEP2 准备请求API')
+    try { uni.setStorageSync('debug_step', 'step2-准备请求') } catch {}
+
     syncing.value = true
     try {
       let config
-      try { config = getCloudConfig()! } catch {
-        uni.setStorageSync('debug_sync_info', { cfgFamilyId: 'no-config', apiFamilyId: '-', memberCount: -1, members: ['getCloudConfig失败'] })
+      try {
+        config = getCloudConfig()!
+        console.log('[sync] STEP3 config:', config?.familyId, config?.serverUrl?.slice(0, 30))
+        try { uni.setStorageSync('debug_step', `step3-配置=${config?.familyId}`) } catch {}
+      } catch {
+        console.log('[sync] STEP3b 获取配置失败')
+        try { uni.setStorageSync('debug_step', 'step3b-配置失败') } catch {}
         return
       }
 
-      uni.setStorageSync('debug_sync_info', { cfgFamilyId: config?.familyId || '空', apiFamilyId: '请求中...', memberCount: -2, members: ['正在请求API'] })
+      console.log('[sync] STEP4 正在请求API familyId=', config?.familyId)
+      try { uni.setStorageSync('debug_step', 'step4-请求API中') } catch {}
       const fam = await familyApi.get(config.familyId)
+      console.log('[sync] STEP5 API返回:', fam?.id, '成员数:', fam?.members?.length)
+      try { uni.setStorageSync('debug_step', `step5-完成=${fam?.members?.length}人`) } catch {}
 
       // 保存调试信息
       try {
